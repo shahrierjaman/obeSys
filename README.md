@@ -82,10 +82,9 @@ These steps will get a copy of the project running locally for development.
 
 ```bash
 git clone https://github.com/shahrierjaman/obeSys.git
-cd obe_software
 ```
 
-### 2. Create and activate a virtual environment
+### 2. Create and activate a virtual environment (optional)
 
 ```bash
 # macOS / Linux
