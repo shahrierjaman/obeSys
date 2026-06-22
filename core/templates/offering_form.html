@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}{% if is_edit %}Edit Course Offering{% else %}Create Course Offering{% endif %}{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h2 class="text-xl font-bold text-slate-800">
+                {% if is_edit %}Edit Course Offering{% else %}Create New Course Offering{% endif %}
+            </h2>
+            <p class="text-sm text-slate-500 mt-0.5">
+                {% if is_edit %}Update offering details.{% else %}Offer a course to a cohort for a specific semester.{% endif %}
+            </p>
+            <p class="text-xs text-slate-400 mt-1">
+                <i class="fas fa-info-circle mr-1"></i>
+                Select a course, cohort, section, and assign instructors for this offering.
+            </p>
+        </div>
+        <div class="flex gap-2 mt-3 sm:mt-0">
+            <a href="{% url 'offering_list' %}" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                <i class="fas fa-times mr-1"></i> Cancel
+            </a>
+            <button type="submit" form="offering-form" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200">
+                <i class="fas fa-save mr-1"></i> {% if is_edit %}Update Offering{% else %}Create Offering{% endif %}
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Form -->
+<form id="offering-form" method="post" action="#">
+    {% csrf_token %}
+    
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Course Selection -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Course <span class="text-red-500">*</span></label>
+                <select name="course" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                    <option value="">Select a course...</option>
+                    {% for course in courses %}
+                    <option value="{{ course.id }}" {% if offering and offering.course_id == course.id %}selected{% endif %}>
+                        {{ course.code }} - {{ course.name }} ({{ course.credits }} CR)
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-slate-400 mt-1">Courses created in Module 2 (Course Management)</p>
+            </div>
+            
+            <!-- Cohort Selection -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Cohort <span class="text-red-500">*</span></label>
+                <select name="cohort" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                    <option value="">Select a cohort...</option>
+                    {% for cohort in cohorts %}
+                    <option value="{{ cohort.id }}" {% if offering and offering.cohort_id == cohort.id %}selected{% endif %}>
+                        {{ cohort.name }} ({{ cohort.program_code }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-slate-400 mt-1">Cohorts created in Module 3 (Cohort Management)</p>
+            </div>
+            
+            <!-- Section Selection -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Section <span class="text-red-500">*</span></label>
+                <select name="section" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                    <option value="">Select a section...</option>
+                    {% for section in sections %}
+                    <option value="{{ section.id }}" {% if offering and offering.section_id == section.id %}selected{% endif %}>
+                        {{ section.name }} (Cohort: {{ section.cohort_id }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-slate-400 mt-1">Sections created in Module 3 (Section Management)</p>
+            </div>
+            
+            <!-- Instructors (Multi-select) -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Instructors <span class="text-red-500">*</span></label>
+                <select name="instructors" multiple class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm h-24">
+                    {% for instructor in instructors %}
+                    <option value="{{ instructor.id }}" {% if offering and instructor.id in offering.instructor_ids %}selected{% endif %}>
+                        {{ instructor.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-slate-400 mt-1">Hold Ctrl/Cmd to select multiple instructors</p>
+            </div>
+            
+            <!-- Semester -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Semester <span class="text-red-500">*</span></label>
+                <select name="semester" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                    <option value="">Select semester...</option>
+                    {% for semester in semesters %}
+                    <option value="{{ semester }}" {% if offering and offering.semester == semester %}selected{% endif %}>
+                        {{ semester }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Year -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Year <span class="text-red-500">*</span></label>
+                <select name="year" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                    <option value="">Select year...</option>
+                    {% for year in years %}
+                    <option value="{{ year }}" {% if offering and offering.year == year %}selected{% endif %}>
+                        {{ year }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Status (For Edit mode) -->
+            {% if is_edit %}
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                <select name="status" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                    <option value="Pending" {% if offering and offering.status == 'Pending' %}selected{% endif %}>Pending</option>
+                    <option value="Active" {% if offering and offering.status == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Completed" {% if offering and offering.status == 'Completed' %}selected{% endif %}>Completed</option>
+                    <option value="Archived" {% if offering and offering.status == 'Archived' %}selected{% endif %}>Archived</option>
+                </select>
+                <p class="text-xs text-slate-400 mt-1">Update the offering status as the semester progresses</p>
+            </div>
+            {% endif %}
+            
+        </div>
+        
+        <!-- Info Box -->
+        <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                <div class="text-sm text-blue-700">
+                    <p class="font-semibold">What happens after creating an offering?</p>
+                    <ul class="list-disc list-inside mt-1 space-y-0.5 text-blue-600">
+                        <li>The offering will appear in the instructor's dashboard</li>
+                        <li>Instructors can design assessment plans and rubrics</li>
+                        <li>Students enrolled in the cohort/section will be automatically linked</li>
+                        <li>Grades and CLO attainment will be calculated</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Form Footer -->
+        <div class="flex items-center justify-end gap-3 pt-4 mt-4 border-t border-slate-200">
+            <a href="{% url 'offering_list' %}" class="px-6 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">Cancel</a>
+            <button type="submit" form="offering-form" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200">
+                <i class="fas fa-save mr-1"></i> {% if is_edit %}Update Offering{% else %}Create Offering{% endif %}
+            </button>
+        </div>
+        
+    </div>
+</form>
+
+{% endblock %}

@@ -1,0 +1,344 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Program-Course Mapping{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-slate-800">Program-Course Mapping</h1>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    {{ program.code }}
+                </span>
+            </div>
+            <p class="text-sm text-slate-500 mt-0.5">{{ program.name }}</p>
+            <p class="text-xs text-slate-400 mt-1">
+                <i class="fas fa-info-circle mr-1"></i> 
+                Select courses and use the buttons to add/remove. Click the up/down arrows to reorder mapped courses.
+            </p>
+        </div>
+        <div class="flex gap-2 mt-3 sm:mt-0">
+            <a href="{% url 'program_list' %}" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                <i class="fas fa-times mr-1"></i> Cancel
+            </a>
+            <button type="button" onclick="saveMapping()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200">
+                <i class="fas fa-save mr-1"></i> Save Mapping
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Two-Column Mapping Interface -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+    <!-- ==================== LEFT COLUMN: Available Courses ==================== -->
+    <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-slate-200 bg-slate-50/50">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                    <i class="fas fa-archive text-slate-400"></i> Available Courses
+                    <span id="available-count" class="text-xs font-normal text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full">{{ available_courses|length }}</span>
+                </h3>
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="search-available" placeholder="Search..."
+                           class="pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40"
+                           onkeyup="render()" />
+                </div>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-3 max-h-[500px]" id="available-list"></div>
+    </div>
+
+    <!-- ==================== CENTER: Action Buttons ==================== -->
+    <div class="lg:col-span-2 flex flex-col items-center justify-center gap-3 py-4">
+        <button onclick="moveAll('add')" class="w-12 h-12 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition flex items-center justify-center border border-indigo-200" title="Add All">
+            <i class="fas fa-chevron-double-right text-sm"></i>
+        </button>
+        <button onclick="moveSelected('add')" class="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center justify-center shadow-sm shadow-indigo-200" title="Add Selected">
+            <i class="fas fa-chevron-right text-sm"></i>
+        </button>
+        <button onclick="moveSelected('remove')" class="w-12 h-12 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-600 transition flex items-center justify-center border border-amber-200" title="Remove Selected">
+            <i class="fas fa-chevron-left text-sm"></i>
+        </button>
+        <button onclick="moveAll('remove')" class="w-12 h-12 rounded-full bg-red-50 hover:bg-red-100 text-red-500 transition flex items-center justify-center border border-red-200" title="Remove All">
+            <i class="fas fa-chevron-double-left text-sm"></i>
+        </button>
+    </div>
+
+    <!-- ==================== RIGHT COLUMN: Mapped Courses ==================== -->
+    <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-slate-200 bg-slate-50/50">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                    <i class="fas fa-list-check text-indigo-500"></i> Courses in Program
+                    <span id="mapped-count" class="text-xs font-normal text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full">{{ mapped_courses|length }}</span>
+                </h3>
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="search-mapped" placeholder="Search..."
+                           class="pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40"
+                           onkeyup="render()" />
+                </div>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-3 max-h-[500px]" id="mapped-list"></div>
+        <div class="p-3 border-t border-slate-200 bg-slate-50/50 text-xs text-slate-400 flex items-center justify-between">
+            <span><i class="fas fa-info-circle mr-1"></i> Order determines the suggested semester sequence.</span>
+            <span class="text-slate-300">Double-click a course to move it</span>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fas fa-book-open"></i></div>
+        <div><span class="text-slate-400 block text-xs">Program</span><span class="font-bold text-slate-700">{{ program.code }}</span></div>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-check-circle"></i></div>
+        <div><span class="text-slate-400 block text-xs">Mapped Courses</span><span class="font-bold text-slate-700" id="stat-mapped">{{ mapped_courses|length }}</span></div>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-clock"></i></div>
+        <div><span class="text-slate-400 block text-xs">Available to Add</span><span class="font-bold text-slate-700" id="stat-available">{{ available_courses|length }}</span></div>
+    </div>
+</div>
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+    // ===================== DATA STORE =====================
+    // allCourses order is preserved throughout — mapped courses appear
+    // in the right panel in the order they appear in this array.
+    let allCourses = [
+        {% for course in all_courses %}
+        { id: {{ course.id }}, code: '{{ course.code|escapejs }}', name: '{{ course.name|escapejs }}', mapped: {% if course.id in mapped_ids %}true{% else %}false{% endif %} },
+        {% endfor %}
+    ];
+
+    // ===================== HELPERS =====================
+
+    function getCourse(id) {
+        return allCourses.find(c => c.id === id);
+    }
+
+    function getAvailable() {
+        return allCourses.filter(c => !c.mapped);
+    }
+
+    function getMapped() {
+        return allCourses.filter(c => c.mapped);
+    }
+
+    // ===================== RENDER =====================
+
+    function render() {
+        const available = getAvailable();
+        const mapped    = getMapped();
+        const searchAvail  = document.getElementById('search-available').value.toLowerCase();
+        const searchMapped = document.getElementById('search-mapped').value.toLowerCase();
+
+        // Update counts
+        document.getElementById('available-count').textContent = available.length;
+        document.getElementById('mapped-count').textContent    = mapped.length;
+        document.getElementById('stat-available').textContent  = available.length;
+        document.getElementById('stat-mapped').textContent     = mapped.length;
+
+        // ── Render Available ──────────────────────────────────────────────────
+        const availContainer = document.getElementById('available-list');
+        const filteredAvail  = available.filter(c =>
+            c.code.toLowerCase().includes(searchAvail) ||
+            c.name.toLowerCase().includes(searchAvail)
+        );
+
+        if (available.length === 0) {
+            availContainer.innerHTML = `
+                <div class="flex items-center justify-center h-32 text-slate-400 text-sm">
+                    <i class="fas fa-check-circle text-emerald-400 mr-2"></i> All courses are mapped to this program.
+                </div>`;
+        } else if (filteredAvail.length === 0) {
+            availContainer.innerHTML = `
+                <div class="flex items-center justify-center h-32 text-slate-400 text-sm">
+                    <i class="fas fa-search mr-2"></i> No courses match your search.
+                </div>`;
+        } else {
+            availContainer.innerHTML = '<div class="space-y-2">' +
+                filteredAvail.map(c => `
+                    <div class="course-item available-item flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:shadow-sm transition cursor-pointer"
+                         data-id="${c.id}" onclick="toggleSelect(this)">
+                        <input type="checkbox" class="course-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                               onclick="event.stopPropagation()" />
+                        <div class="flex-1 min-w-0">
+                            <span class="font-mono text-xs font-semibold text-indigo-600">${c.code}</span>
+                            <span class="text-sm text-slate-700 ml-2">${c.name}</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); moveCourse('add', ${c.id})"
+                                class="text-indigo-400 hover:text-indigo-600 transition text-sm flex-shrink-0" title="Add this course">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>`).join('') +
+            '</div>';
+        }
+
+        // ── Render Mapped ─────────────────────────────────────────────────────
+        const mappedContainer = document.getElementById('mapped-list');
+        const filteredMapped  = mapped.filter(c =>
+            c.code.toLowerCase().includes(searchMapped) ||
+            c.name.toLowerCase().includes(searchMapped)
+        );
+
+        if (mapped.length === 0) {
+            mappedContainer.innerHTML = `
+                <div class="flex items-center justify-center h-32 text-slate-400 text-sm">
+                    <i class="fas fa-arrow-left text-amber-400 mr-2"></i> No courses mapped yet. Add from the left panel.
+                </div>`;
+        } else if (filteredMapped.length === 0) {
+            mappedContainer.innerHTML = `
+                <div class="flex items-center justify-center h-32 text-slate-400 text-sm">
+                    <i class="fas fa-search mr-2"></i> No courses match your search.
+                </div>`;
+        } else {
+            mappedContainer.innerHTML = '<div class="space-y-2">' +
+                mapped.map((c, index) => {
+                    // Only render rows that match the search filter
+                    if (!c.code.toLowerCase().includes(searchMapped) &&
+                        !c.name.toLowerCase().includes(searchMapped)) return '';
+                    return `
+                    <div class="course-item mapped-item flex items-center gap-3 p-3 bg-indigo-50/30 border border-indigo-200 rounded-lg hover:border-indigo-400 transition cursor-pointer"
+                         data-id="${c.id}" data-index="${index}" onclick="toggleSelect(this)">
+                        <input type="checkbox" class="course-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                               onclick="event.stopPropagation()" />
+                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex-shrink-0">
+                            ${index + 1}
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <span class="font-mono text-xs font-semibold text-indigo-600">${c.code}</span>
+                            <span class="text-sm text-slate-700 ml-2">${c.name}</span>
+                        </div>
+                        <div class="flex flex-col gap-0.5 flex-shrink-0">
+                            <button onclick="event.stopPropagation(); moveOrder('up', ${index})"
+                                    class="text-slate-300 hover:text-indigo-600 text-xs transition" title="Move Up">
+                                <i class="fas fa-chevron-up"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); moveOrder('down', ${index})"
+                                    class="text-slate-300 hover:text-indigo-600 text-xs transition" title="Move Down">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
+                        <button onclick="event.stopPropagation(); moveCourse('remove', ${c.id})"
+                                class="text-red-300 hover:text-red-500 text-sm flex-shrink-0" title="Remove this course">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>`;
+                }).join('') +
+            '</div>';
+        }
+    }
+
+    // ===================== ACTIONS =====================
+
+    function toggleSelect(element) {
+        const checkbox = element.querySelector('.course-checkbox');
+        checkbox.checked = !checkbox.checked;
+    }
+
+    function getSelectedIds(containerId) {
+        const items = document.querySelectorAll('#' + containerId + ' .course-item');
+        const selected = [];
+        items.forEach(item => {
+            const cb = item.querySelector('.course-checkbox');
+            if (cb && cb.checked) selected.push(parseInt(item.dataset.id));
+        });
+        return selected;
+    }
+
+    function moveCourse(direction, id) {
+        const course = getCourse(id);
+        if (!course) return;
+        if (direction === 'add')    course.mapped = true;
+        if (direction === 'remove') course.mapped = false;
+        render();
+    }
+
+    function moveSelected(direction) {
+        const containerId = direction === 'add' ? 'available-list' : 'mapped-list';
+        getSelectedIds(containerId).forEach(id => {
+            const course = getCourse(id);
+            if (course) course.mapped = (direction === 'add');
+        });
+        render();
+    }
+
+    function moveAll(direction) {
+        (direction === 'add' ? getAvailable() : getMapped())
+            .forEach(c => { c.mapped = (direction === 'add'); });
+        render();
+    }
+
+    // ── FIX: swap directly in allCourses so order persists across renders ──
+    function moveOrder(direction, index) {
+        // Collect the indices of mapped courses inside allCourses
+        const mappedIndices = [];
+        allCourses.forEach((c, i) => { if (c.mapped) mappedIndices.push(i); });
+
+        if (direction === 'up' && index > 0) {
+            const a = mappedIndices[index];
+            const b = mappedIndices[index - 1];
+            [allCourses[a], allCourses[b]] = [allCourses[b], allCourses[a]];
+        } else if (direction === 'down' && index < mappedIndices.length - 1) {
+            const a = mappedIndices[index];
+            const b = mappedIndices[index + 1];
+            [allCourses[a], allCourses[b]] = [allCourses[b], allCourses[a]];
+        }
+        render();
+    }
+
+    // ===================== DOUBLE-CLICK TO MOVE =====================
+
+    document.addEventListener('dblclick', function (e) {
+        const item = e.target.closest('.course-item');
+        if (!item) return;
+        const course = getCourse(parseInt(item.dataset.id));
+        if (!course) return;
+        course.mapped = !course.mapped;
+        render();
+    });
+
+    // ===================== SAVE =====================
+
+    function saveMapping() {
+        const order = getMapped().map((c, i) => ({
+            id: c.id, code: c.code, name: c.name, order: i + 1
+        }));
+
+        console.log('Saving mapping:', { program_id: {{ program.id }}, courses: order });
+
+        const btn = document.querySelector('[onclick="saveMapping()"]');
+        const originalHTML = btn.innerHTML;
+        const originalClass = btn.className;
+
+        btn.innerHTML  = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';
+        btn.disabled   = true;
+
+        setTimeout(() => {
+            btn.innerHTML  = '<i class="fas fa-check mr-1"></i> Saved!';
+            btn.className  = 'px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-emerald-200';
+
+            setTimeout(() => {
+                btn.innerHTML  = originalHTML;
+                btn.className  = originalClass;
+                btn.disabled   = false;
+            }, 1500);
+        }, 800);
+    }
+
+    // ===================== INITIAL RENDER =====================
+    render();
+</script>
+
+{% endblock %}

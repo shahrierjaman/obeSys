@@ -1,0 +1,811 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}{% if is_edit %}Edit Course{% else %}Create New Course{% endif %}{% endblock %}
+
+{% block content %}
+
+<!-- ==================== RICH TEXT EDITOR + DYNAMIC LIST STYLES ==================== -->
+<style>
+    .rich-editor-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        flex-wrap: wrap;
+    }
+    .rich-editor-toolbar button {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 5px;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+    }
+    .rich-editor-toolbar button:hover {
+        background: #e0e7ff;
+        color: #4f46e5;
+    }
+    .rich-editor-toolbar button.active {
+        background: #e0e7ff;
+        color: #4f46e5;
+    }
+    .rich-editor-toolbar .toolbar-sep {
+        width: 1px;
+        height: 18px;
+        background: #e2e8f0;
+        margin: 0 3px;
+    }
+    .rich-editor-content {
+        min-height: 90px;
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 0 0 8px 8px;
+        font-size: 13.5px;
+        color: #334155;
+        outline: none;
+        line-height: 1.6;
+        background: #fff;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .rich-editor-content:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+    .rich-editor-content[placeholder]:empty:before {
+        content: attr(placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+
+    /* CLO cards (mirrors PEO/PLO card pattern from program form) */
+    .clo-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 16px;
+        transition: box-shadow 0.15s;
+    }
+    .clo-item:hover {
+        box-shadow: 0 2px 8px rgba(99,102,241,0.07);
+    }
+    .clo-label-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #4f46e5;
+        background: #e0e7ff;
+        border-radius: 6px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+        margin-bottom: 10px;
+    }
+    .clo-code-input {
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        padding: 5px 10px;
+        outline: none;
+        width: 100%;
+        max-width: 220px;
+        background: #fff;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .clo-code-input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.10);
+    }
+
+    /* Associated Programs checkbox chips */
+    .program-checkbox-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: border-color .15s, background .15s, box-shadow .15s;
+        background: #fff;
+    }
+    .program-checkbox-card:hover {
+        border-color: #c7d2fe;
+        background: #f8fafc;
+    }
+    .program-checkbox-card input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #4f46e5;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .program-checkbox-card:has(input:checked) {
+        border-color: #6366f1;
+        background: #eef2ff;
+        box-shadow: 0 0 0 1px rgba(99,102,241,0.15);
+    }
+
+    /* Inherited PLO display cards */
+    .inherited-plo-card {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 10px;
+        padding: 10px 12px;
+    }
+    .plo-label-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #0369a1;
+        background: #e0f2fe;
+        border-radius: 6px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+    }
+
+    #clo-mapping-table th, #clo-mapping-table td {
+        vertical-align: top;
+    }
+</style>
+
+<div class="flex flex-col lg:flex-row gap-8">
+
+    <!-- ==================== STICKY SIDEBAR NAV ==================== -->
+    <aside class="lg:w-64 flex-shrink-0">
+        <div class="lg:sticky lg:top-6 bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-1">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 pb-2 border-b border-slate-100">Sections</p>
+            <a href="#section-basic" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-info-circle w-4 text-center"></i> Basic Details
+            </a>
+            <a href="#section-objectives" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-flag w-4 text-center"></i> Course Objectives
+            </a>
+            <a href="#section-plos" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-sitemap w-4 text-center"></i> Inherited PLOs
+            </a>
+            <a href="#section-clos" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-tasks w-4 text-center"></i> Course Learning Outcomes
+            </a>
+            <a href="#section-mapping" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-link w-4 text-center"></i> CLO-PLO & Domain Mapping
+            </a>
+            <a href="#section-prerequisites" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-project-diagram w-4 text-center"></i> Prerequisites
+            </a>
+            <a href="#section-materials" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-book w-4 text-center"></i> Reference Materials
+            </a>
+            <a href="#section-version" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-code-branch w-4 text-center"></i> Versioning
+            </a>
+        </div>
+    </aside>
+
+    <!-- ==================== MAIN FORM ==================== -->
+    <div class="flex-1 space-y-6">
+
+        <!-- Form Header -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">
+                        {% if is_edit %}Edit Course{% else %}Create New Course{% endif %}
+                    </h2>
+                    <p class="text-sm text-slate-500 mt-0.5">
+                        {% if is_edit %}Update course parameters, CLOs, and mappings.{% else %}Define a new course with learning outcomes and mappings.{% endif %}
+                    </p>
+                </div>
+                <div class="flex gap-2 mt-3 sm:mt-0">
+                    <a href="{% url 'course_list' %}" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                        <i class="fas fa-times mr-1"></i> Cancel
+                    </a>
+                    <button type="submit" form="course-form" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200">
+                        <i class="fas fa-save mr-1"></i> {% if is_edit %}Update Course{% else %}Create Course{% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== FORM (wraps all sections) ==================== -->
+        <form id="course-form" method="post" action="#">
+            {% csrf_token %}
+
+            <!-- SECTION 1: Basic Details -->
+            <section id="section-basic" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-info-circle text-indigo-500"></i> Basic Details
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Course Code <span class="text-red-500">*</span></label>
+                        <input type="text" name="code" value="{% if course %}{{ course.code }}{% endif %}" 
+                               class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" 
+                               placeholder="e.g., CS-201" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Course Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="name" value="{% if course %}{{ course.name }}{% endif %}" 
+                               class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" 
+                               placeholder="e.g., Data Structures and Algorithms" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Credits <span class="text-red-500">*</span></label>
+                        <input type="number" name="credits" value="{% if course %}{{ course.credits }}{% else %}3{% endif %}" 
+                               class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" 
+                               min="1" max="6" />
+                    </div>
+
+                    <!-- Associated Programs: checkbox chips (drives Inherited PLOs + mapping options) -->
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Associated Programs <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                            {% for code, pname in all_programs.items %}
+                            <label class="program-checkbox-card">
+                                <input type="checkbox" name="programs" value="{{ code }}"
+                                       class="program-checkbox" data-program-code="{{ code }}"
+                                       {% if course and code in course.programs %}checked{% endif %} />
+                                <span>
+                                    <span class="block text-sm font-semibold text-slate-700">{{ code }}</span>
+                                    <span class="block text-xs text-slate-400">{{ pname }}</span>
+                                </span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Selecting a program pulls its PLOs into the section below for CLO mapping.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: Course Objectives -->
+            <section id="section-objectives" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-flag text-indigo-500"></i> Course Objectives
+                </h3>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Course Objectives <span class="text-red-500">*</span></label>
+                    <textarea rows="4" name="objectives" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" 
+                              placeholder="Describe the overall objectives of this course...">{% if course %}{{ course.objectives }}{% endif %}</textarea>
+                    <p class="text-xs text-slate-400 mt-1">What students will achieve by completing this course.</p>
+                </div>
+            </section>
+
+            <!-- SECTION 3: Inherited PLOs (from Associated Programs) -->
+            <section id="section-plos" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-sitemap text-indigo-500"></i> Inherited PLOs
+                </h3>
+                <p class="text-xs text-slate-400 mt-1 mb-4">These PLOs are pulled automatically from the Associated Programs selected above. They become the available targets in the CLO-PLO mapping table.</p>
+
+                <div id="inherited-plo-list"></div>
+
+                <div id="inherited-plo-empty-state" class="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">
+                    <i class="fas fa-sitemap text-2xl block mb-2 text-slate-300"></i>
+                    No programs selected yet. Check one or more Associated Programs above to see their PLOs.
+                </div>
+            </section>
+
+            <!-- SECTION 4: CLOs (dynamic add/remove, same pattern as PEO/PLO) -->
+            <section id="section-clos" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-tasks text-indigo-500"></i> Course Learning Outcomes (CLOs)
+                    </h3>
+                    <button type="button" id="add-clo-btn"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-plus text-xs"></i> Add CLO
+                    </button>
+                </div>
+                <p class="text-xs text-slate-400 mt-1 mb-4">CLOs describe what students will know and be able to do upon completing this course.</p>
+
+                <div id="clo-list" class="space-y-4">
+                    <!-- CLO items injected here by JS -->
+                </div>
+
+                <div id="clo-empty-state" class="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">
+                    <i class="fas fa-tasks text-2xl block mb-2 text-slate-300"></i>
+                    No CLOs added yet. Click <span class="font-medium text-indigo-400">"Add CLO"</span> to define course learning outcomes.
+                </div>
+            </section>
+
+            <!-- SECTION 5: CLO-PLO Mapping & Learning Domains -->
+            <section id="section-mapping" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-link text-indigo-500"></i> CLO-PLO Mapping & Learning Domains
+                </h3>
+                <p class="text-xs text-slate-400 mt-1 mb-4">Map each CLO to a Program Learning Outcome (PLO) and assign a Bloom's Learning Domain.</p>
+
+                <div class="overflow-x-auto">
+                    <table id="clo-mapping-table" class="w-full text-sm border border-slate-200 rounded-lg">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200">
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">CLO Code</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">CLO Description</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Mapped PLO <span class="text-red-500">*</span></th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Learning Domain <span class="text-red-500">*</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="clo-mapping-body">
+                            <!-- Rows injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="clo-mapping-empty-state" class="mt-2 hidden">
+                    <div class="px-4 py-6 text-center text-slate-400 text-sm border border-slate-200 rounded-lg">
+                        <i class="fas fa-info-circle mr-1"></i> Add CLOs above to enable mapping.
+                    </div>
+                </div>
+
+                <p class="text-xs text-slate-400 mt-3">
+                    <i class="fas fa-info-circle mr-1"></i> Each CLO maps to exactly one PLO (many-to-one). Multiple CLOs may map to the same PLO.
+                </p>
+            </section>
+
+            <!-- SECTION 6: Prerequisites (unchanged) -->
+            <section id="section-prerequisites" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-project-diagram text-indigo-500"></i> Prerequisites & Related Courses
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Prerequisites</label>
+                        <select multiple class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm h-32">
+                            {% if course and course.prerequisites %}
+                                {% for prereq in course.prerequisites %}
+                                <option selected>{{ prereq }}</option>
+                                {% endfor %}
+                            {% endif %}
+                            <option>CS-101: Introduction to Computer Science</option>
+                            <option>CS-102: Programming Fundamentals</option>
+                            <option>MATH-101: Calculus I</option>
+                            <option>MATH-102: Calculus II</option>
+                            <option>PHY-101: Physics I</option>
+                        </select>
+                        <p class="text-xs text-slate-400 mt-1">Hold Ctrl/Cmd to select multiple prerequisites</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Related Courses</label>
+                        <select multiple class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm h-32">
+                            <option>CS-301: Database Management Systems</option>
+                            <option>CS-302: Operating Systems</option>
+                            <option>CS-401: Software Engineering</option>
+                            <option>CS-402: Artificial Intelligence</option>
+                        </select>
+                        <p class="text-xs text-slate-400 mt-1">Courses that are related or build upon this one</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 7: Reference Materials (unchanged) -->
+            <section id="section-materials" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-book text-indigo-500"></i> Reference Materials
+                </h3>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Textbooks & References</label>
+                    <textarea rows="3" name="reference_materials" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" 
+                              placeholder="List textbooks, reference materials, and online resources...">{% if course %}{{ course.reference_materials }}{% endif %}</textarea>
+                    <p class="text-xs text-slate-400 mt-1">Include authors, editions, and ISBN numbers if available.</p>
+                </div>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Additional Resources (URLs)</label>
+                    <input type="url" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" 
+                           placeholder="https://example.com/course-resources" />
+                </div>
+            </section>
+
+            <!-- SECTION 8: Versioning (unchanged) -->
+            <section id="section-version" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-code-branch text-indigo-500"></i> Versioning
+                </h3>
+                <div class="flex flex-wrap items-center gap-6 mt-2">
+                    <div>
+                        <span class="text-xs text-slate-400 block">Current Version</span>
+                        <span class="text-lg font-bold text-slate-800">v{% if course %}{{ course.version }}{% else %}1{% endif %}</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-400 block">Status</span>
+                        {% if course and course.is_archived %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            <i class="fas fa-archive mr-1"></i> Archived
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></span> Active
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-400 block">Created</span>
+                        <span class="text-sm text-slate-700">{% if course %}{{ course.created_at }}{% else %}New course{% endif %}</span>
+                    </div>
+                    {% if is_edit %}
+                    <div class="ml-auto">
+                        <button type="button" class="px-4 py-2 border border-blue-300 text-blue-600 hover:bg-blue-50 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                            <i class="fas fa-copy"></i> Save as New Version
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if is_edit %}
+                <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                    <i class="fas fa-info-circle mr-1"></i> 
+                    Any change to course parameters will create a new version. The old version will be archived.
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- Form Footer -->
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                <a href="{% url 'course_list' %}" class="px-6 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">Cancel</a>
+                <button type="submit" form="course-form" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200">
+                    <i class="fas fa-save mr-1"></i> {% if is_edit %}Update Course{% else %}Create Course{% endif %}
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- ==================== CLO / PLO-INHERITANCE / MAPPING JAVASCRIPT ==================== -->
+<script>
+(function () {
+
+    // ── Backend-supplied data (built via Django loops, no JSON) ────────────────
+    const PROGRAM_PLOS = {};
+    const PROGRAM_NAMES = {};
+    {% for code, pname in all_programs.items %}
+    PROGRAM_NAMES["{{ code }}"] = "{{ pname|escapejs }}";
+    {% endfor %}
+    {% for code, plo_list in program_plos.items %}
+    PROGRAM_PLOS["{{ code }}"] = [
+        {% for plo in plo_list %}
+        { id: {{ plo.id }}, key: "{{ code }}-{{ plo.id }}", code: "{{ plo.code }}", title: "{{ plo.title|escapejs }}", description: "{{ plo.description|escapejs }}", program: "{{ code }}" }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    {% endfor %}
+
+    // ── State ────────────────────────────────────────────────────────────────
+    const clos = [];               // { id, codeInput, editorEl }
+    let cloIdCounter = 0;
+    const cloMapping = {};         // cloMapping[cloId] = { ploKey, domain }
+    let selectedProgramCodes = []; // currently checked Associated Program codes
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str || '';
+        return div.innerHTML;
+    }
+
+    // ── Rich-text toolbar (shared factory, same pattern as program form) ──────
+    function buildToolbar(editorId) {
+        return `
+        <div class="rich-editor-toolbar" data-editor="${editorId}">
+            <button type="button" title="Bold" data-cmd="bold"><i class="fas fa-bold"></i></button>
+            <button type="button" title="Italic" data-cmd="italic"><i class="fas fa-italic"></i></button>
+            <button type="button" title="Underline" data-cmd="underline"><i class="fas fa-underline"></i></button>
+            <div class="toolbar-sep"></div>
+            <button type="button" title="Superscript" data-cmd="superscript"><i class="fas fa-superscript"></i></button>
+            <button type="button" title="Subscript" data-cmd="subscript"><i class="fas fa-subscript"></i></button>
+            <div class="toolbar-sep"></div>
+            <button type="button" title="Ordered list" data-cmd="insertOrderedList"><i class="fas fa-list-ol"></i></button>
+            <button type="button" title="Unordered list" data-cmd="insertUnorderedList"><i class="fas fa-list-ul"></i></button>
+            <div class="toolbar-sep"></div>
+            <button type="button" title="Remove formatting" data-cmd="removeFormat"><i class="fas fa-remove-format"></i></button>
+        </div>`;
+    }
+
+    function buildEditor(editorId, placeholder) {
+        return `<div id="${editorId}" class="rich-editor-content" contenteditable="true" placeholder="${placeholder}" spellcheck="true"></div>`;
+    }
+
+    function wireToolbar(toolbarEl) {
+        toolbarEl.addEventListener('mousedown', function (e) {
+            const btn = e.target.closest('[data-cmd]');
+            if (!btn) return;
+            e.preventDefault();
+            const cmd = btn.dataset.cmd;
+            const editorId = toolbarEl.dataset.editor;
+            const editorEl = document.getElementById(editorId);
+            if (editorEl) editorEl.focus();
+            document.execCommand(cmd, false, null);
+            updateToolbarState(toolbarEl);
+        });
+    }
+
+    function updateToolbarState(toolbarEl) {
+        ['bold', 'italic', 'underline', 'superscript', 'subscript'].forEach(cmd => {
+            const btn = toolbarEl.querySelector(`[data-cmd="${cmd}"]`);
+            if (!btn) return;
+            btn.classList.toggle('active', document.queryCommandState(cmd));
+        });
+    }
+
+    document.addEventListener('selectionchange', function () {
+        document.querySelectorAll('.rich-editor-toolbar').forEach(updateToolbarState);
+    });
+
+    // ── Associated Programs → Inherited PLOs ────────────────────────────────────
+
+    const inheritedPloList  = document.getElementById('inherited-plo-list');
+    const inheritedPloEmpty = document.getElementById('inherited-plo-empty-state');
+
+    function renderInheritedPlos() {
+        inheritedPloList.innerHTML = '';
+        if (selectedProgramCodes.length === 0) {
+            inheritedPloEmpty.style.display = 'block';
+            return;
+        }
+        inheritedPloEmpty.style.display = 'none';
+
+        selectedProgramCodes.forEach(function (code) {
+            const list = PROGRAM_PLOS[code] || [];
+            const groupWrap = document.createElement('div');
+            groupWrap.className = 'mb-4';
+            groupWrap.innerHTML = `<p class="text-xs font-semibold text-sky-600 uppercase tracking-wide mb-2">${escapeHtml(PROGRAM_NAMES[code] || code)} <span class="text-slate-400 font-normal">(${escapeHtml(code)})</span></p>`;
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-3';
+            if (list.length === 0) {
+                grid.innerHTML = '<p class="text-xs text-slate-400 italic">No PLOs defined for this program yet.</p>';
+            } else {
+                list.forEach(function (plo) {
+                    const card = document.createElement('div');
+                    card.className = 'inherited-plo-card';
+                    card.innerHTML = `
+                        <span class="plo-label-badge">${escapeHtml(plo.code)}.</span>
+                        <p class="text-sm font-semibold text-slate-700 mt-1">${escapeHtml(plo.title)}</p>
+                        <p class="text-xs text-slate-500 mt-1 leading-relaxed">${escapeHtml(plo.description)}</p>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+            groupWrap.appendChild(grid);
+            inheritedPloList.appendChild(groupWrap);
+        });
+    }
+
+    function updateProgramsSelection() {
+        selectedProgramCodes = Array.from(document.querySelectorAll('.program-checkbox:checked'))
+            .map(function (cb) { return cb.dataset.programCode; });
+        renderInheritedPlos();
+        rebuildCloMappingTable();
+    }
+
+    document.querySelectorAll('.program-checkbox').forEach(function (cb) {
+        cb.addEventListener('change', updateProgramsSelection);
+    });
+
+    // ── CLOs ─────────────────────────────────────────────────────────────────
+
+    const cloList      = document.getElementById('clo-list');
+    const cloEmpty      = document.getElementById('clo-empty-state');
+    const addCloBtn      = document.getElementById('add-clo-btn');
+
+    function renderCloLabels() {
+        clos.forEach(function (clo, i) {
+            const badge = document.querySelector(`[data-clo-badge="${clo.id}"]`);
+            if (badge) badge.textContent = 'CLO ' + (i + 1);
+        });
+    }
+
+    function getCloCode(id) {
+        const el = document.querySelector(`[data-clo-code="${id}"]`);
+        return el ? (el.value || '') : '';
+    }
+
+    function getCloDescriptionPreview(id) {
+        const editorEl = document.getElementById('editor-' + id);
+        if (!editorEl) return '';
+        const text = editorEl.innerText || editorEl.textContent || '';
+        return text.length > 90 ? text.slice(0, 90) + '…' : text;
+    }
+
+    function updateCloMappingRowPreview(id) {
+        const row = cloMappingBody.querySelector(`tr[data-clo-row="${id}"]`);
+        if (!row) return;
+        const cells = row.querySelectorAll('td');
+        if (cells[0]) cells[0].textContent = getCloCode(id);
+        if (cells[1]) cells[1].textContent = getCloDescriptionPreview(id);
+    }
+
+    function addClo(codeVal, contentHtml, ploKeyVal, domainVal) {
+        const id       = 'clo-' + (++cloIdCounter);
+        const editorId = 'editor-' + id;
+        const index    = clos.length + 1;
+        const defaultCode = codeVal || ('CLO-' + index);
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'clo-item';
+        wrapper.dataset.cloId = id;
+        wrapper.innerHTML = `
+            <div class="flex items-start justify-between gap-3 mb-2">
+                <span class="clo-label-badge" data-clo-badge="${id}">CLO ${index}</span>
+                <button type="button" class="clo-delete-btn text-red-400 hover:text-red-600 text-sm mt-0.5 transition" data-target="${id}" title="Remove CLO">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+            <div class="mb-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1">CLO Code</label>
+                <input type="text" class="clo-code-input" placeholder="e.g., CLO-1" value="${escapeHtml(defaultCode)}" data-clo-code="${id}" />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Description</label>
+                ${buildToolbar(editorId)}
+                ${buildEditor(editorId, 'Describe what students will know and be able to do upon completing this course…')}
+            </div>
+        `;
+
+        cloList.appendChild(wrapper);
+
+        const toolbar = wrapper.querySelector('.rich-editor-toolbar');
+        wireToolbar(toolbar);
+
+        const editorEl = document.getElementById(editorId);
+        if (contentHtml) editorEl.innerHTML = contentHtml;
+
+        wrapper.querySelector('.clo-delete-btn').addEventListener('click', function () {
+            removeClo(id);
+        });
+
+        const codeInput = wrapper.querySelector(`[data-clo-code="${id}"]`);
+        codeInput.addEventListener('input', function () { updateCloMappingRowPreview(id); });
+        editorEl.addEventListener('input', function () { updateCloMappingRowPreview(id); });
+
+        clos.push({ id, editorEl, codeInput });
+        cloMapping[id] = { ploKey: ploKeyVal || '', domain: domainVal || '' };
+
+        toggleCloEmpty();
+        rebuildCloMappingTable();
+    }
+
+    function removeClo(id) {
+        const idx = clos.findIndex(c => c.id === id);
+        if (idx === -1) return;
+        clos.splice(idx, 1);
+        delete cloMapping[id];
+        const el = cloList.querySelector(`[data-clo-id="${id}"]`);
+        if (el) el.remove();
+        renderCloLabels();
+        toggleCloEmpty();
+        rebuildCloMappingTable();
+    }
+
+    function toggleCloEmpty() {
+        cloEmpty.style.display = clos.length === 0 ? 'block' : 'none';
+    }
+
+    addCloBtn.addEventListener('click', function () {
+        addClo();
+    });
+
+    // ── CLO-PLO Mapping table ────────────────────────────────────────────────
+
+    const cloMappingTable      = document.getElementById('clo-mapping-table');
+    const cloMappingBody       = document.getElementById('clo-mapping-body');
+    const cloMappingEmptyState = document.getElementById('clo-mapping-empty-state');
+
+    function buildPloOptionsHtml(selectedKey) {
+        if (selectedProgramCodes.length === 0) {
+            return '<option value="">Select Associated Programs first</option>';
+        }
+        let html = '<option value="">Select PLO…</option>';
+        selectedProgramCodes.forEach(function (code) {
+            const list = PROGRAM_PLOS[code] || [];
+            if (list.length === 0) return;
+            html += `<optgroup label="${escapeHtml(PROGRAM_NAMES[code] || code)} (${escapeHtml(code)})">`;
+            list.forEach(function (plo) {
+                const key = code + '-' + plo.id;
+                const sel = key === selectedKey ? 'selected' : '';
+                html += `<option value="${key}" ${sel}>${escapeHtml(plo.code)}. ${escapeHtml(plo.title)}</option>`;
+            });
+            html += '</optgroup>';
+        });
+        return html;
+    }
+
+    function rebuildCloMappingTable() {
+        if (clos.length === 0) {
+            cloMappingTable.style.display = 'none';
+            cloMappingEmptyState.classList.remove('hidden');
+            return;
+        }
+        cloMappingTable.style.display = '';
+        cloMappingEmptyState.classList.add('hidden');
+        cloMappingBody.innerHTML = '';
+
+        clos.forEach(function (clo) {
+            if (!cloMapping[clo.id]) cloMapping[clo.id] = { ploKey: '', domain: '' };
+            const stored = cloMapping[clo.id];
+
+            // Invalidate a stored PLO selection if its program is no longer selected
+            if (stored.ploKey) {
+                const progOfKey = stored.ploKey.split('-')[0];
+                if (selectedProgramCodes.indexOf(progOfKey) === -1) {
+                    stored.ploKey = '';
+                }
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = 'border-b border-slate-100 hover:bg-slate-50/50';
+            tr.dataset.cloRow = clo.id;
+
+            const tdCode = document.createElement('td');
+            tdCode.className = 'px-4 py-2.5 font-mono text-xs font-semibold text-indigo-600 whitespace-nowrap';
+            tdCode.textContent = getCloCode(clo.id);
+            tr.appendChild(tdCode);
+
+            const tdDesc = document.createElement('td');
+            tdDesc.className = 'px-4 py-2.5 text-xs text-slate-600 max-w-xs';
+            tdDesc.textContent = getCloDescriptionPreview(clo.id);
+            tr.appendChild(tdDesc);
+
+            const tdPlo = document.createElement('td');
+            tdPlo.className = 'px-3 py-2.5';
+            const ploSelect = document.createElement('select');
+            ploSelect.className = 'border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full max-w-[230px]';
+            ploSelect.disabled = selectedProgramCodes.length === 0;
+            ploSelect.innerHTML = buildPloOptionsHtml(stored.ploKey);
+            ploSelect.addEventListener('change', function () {
+                cloMapping[clo.id].ploKey = ploSelect.value;
+            });
+            tdPlo.appendChild(ploSelect);
+            tr.appendChild(tdPlo);
+
+            const tdDomain = document.createElement('td');
+            tdDomain.className = 'px-3 py-2.5';
+            const domainSelect = document.createElement('select');
+            domainSelect.className = 'border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full max-w-[150px]';
+            ['Cognitive', 'Psychomotor', 'Affective'].forEach(function (d) {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d;
+                if (stored.domain === d) opt.selected = true;
+                domainSelect.appendChild(opt);
+            });
+            if (!stored.domain) stored.domain = domainSelect.value; // defaults to first option
+            domainSelect.addEventListener('change', function () {
+                cloMapping[clo.id].domain = domainSelect.value;
+            });
+            tdDomain.appendChild(domainSelect);
+            tr.appendChild(tdDomain);
+
+            cloMappingBody.appendChild(tr);
+        });
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    toggleCloEmpty();
+    cloMappingTable.style.display = 'none';
+    cloMappingEmptyState.classList.remove('hidden');
+    updateProgramsSelection(); // reads checked checkboxes (pre-checked in edit mode) + renders inherited PLOs
+
+    // ── Pre-populate when editing ────────────────────────────────────────────
+    {% if is_edit and course %}
+        {% for clo in course.clos %}
+        addClo('{{ clo.code|escapejs }}', '{{ clo.description|escapejs }}', '{{ clo.plo_key|escapejs }}', '{{ clo.learning_domain|escapejs }}');
+        {% endfor %}
+    {% endif %}
+
+})();
+</script>
+
+{% endblock %}

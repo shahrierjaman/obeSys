@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OBE Management System</title>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome 6 (Free Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+    <!-- Minimal Custom Overrides -->
+    <style>
+        .sidebar-link {
+            transition: all 0.2s ease;
+            .sidebar-link.active {
+                background: #e0e7ff;
+                color: #1e3a8a;
+                border-right: 4px solid #4f46e5;
+            }
+        }
+        .sidebar-link:hover {
+            background: #e0e7ff;
+            color: #1e3a8a;
+            border-radius: 0.5rem;
+        }
+        .sidebar-link.active {
+            background: #e0e7ff;
+            color: #1e3a8a;
+            border-right: 4px solid #4f46e5;
+        }
+        /* Scroll bar styling for clean look */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        body {
+            background: #f1f5f9;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MAIN CONTAINER: Flex Sidebar + Content -->
+    <div class="flex h-screen overflow-hidden">
+
+        <!-- ======================== SIDEBAR ======================== -->
+        <aside class="w-64 bg-white shadow-xl border-r border-gray-200 flex-shrink-0 flex flex-col h-full">
+
+            <!-- Logo Area -->
+            <div class="flex items-center gap-3 px-6 h-16 border-b border-gray-100">
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+                    OBE
+                </div>
+                <span class="text-xl font-semibold text-slate-800 tracking-tight">OBE<span class="text-indigo-600">Sys</span></span>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+
+                <!-- Section: Core -->
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Management</p>
+
+                    <!-- Dashboard -->
+                    <a href="{% url 'dashboard' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i class="fas fa-th-large w-5 text-center text-slate-400"></i> Dashboard
+                    </a>
+
+                    <!-- Programs -->
+                    <a href="{% url 'program_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 {% if 'program' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="fas fa-graduation-cap w-5 text-center text-slate-400"></i> My Programs
+                    </a>
+
+                    <!-- Courses -->
+                    <a href="{% url 'course_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 {% if 'course' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="fas fa-book-open w-5 text-center text-slate-400"></i> Courses
+                    </a>
+
+                    <!-- Cohorts -->
+                    <a href="{% url 'cohort_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 {% if 'cohort' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="fas fa-users w-5 text-center text-slate-400"></i> Cohorts
+                    </a>
+
+                    <!-- Offerings -->
+                    <a href="{% url 'offering_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 {% if 'offering' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="fas fa-chalkboard-teacher w-5 text-center text-slate-400"></i> Offerings
+                    </a>
+                </div>
+
+                <!-- Section: Assessment & Surveys -->
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Evaluation</p>
+                    <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500">
+                        <i class="fas fa-chart-bar w-5 text-center text-slate-400"></i> Analysis
+                    </a>
+                    <a href="{% url 'survey_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500">
+                        <i class="fas fa-poll w-5 text-center text-slate-400"></i> Surveys
+                    </a>
+                </div>
+
+                <!-- Section: System -->
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">System</p>
+                    <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500">
+                        <i class="fas fa-tasks w-5 text-center text-slate-400"></i> Workflow
+                    </a>
+                    <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500">
+                        <i class="fas fa-folder-open w-5 text-center text-slate-400"></i> Storage
+                    </a>
+                </div>
+
+            </nav>
+
+            <!-- Footer / Logout -->
+            <div class="border-t border-gray-100 p-4">
+                <a href="{% url 'logout' %}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg transition">
+                    <i class="fas fa-sign-out-alt w-5 text-center"></i> Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- ======================== MAIN CONTENT ======================== -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+
+            <!-- Top Navbar -->
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm flex-shrink-0">
+                <!-- Left: Page Title / Breadcrumb (Dynamic) -->
+                <div>
+                    <h1 class="text-lg font-semibold text-slate-700">{% block page_title %}Dashboard{% endblock %}</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Program Controller Dashboard</p>
+                </div>
+
+                <!-- Right: Notifications & Profile -->
+                <div class="flex items-center gap-4">
+                    <!-- Search (minimal) -->
+                    <div class="hidden md:flex items-center bg-slate-50 rounded-full px-3 py-1 border border-slate-200">
+                        <i class="fas fa-search text-slate-400 text-xs"></i>
+                        <input type="text" placeholder="Search..." class="bg-transparent border-0 focus:ring-0 text-sm w-32 px-2 py-1 outline-none" />
+                    </div>
+                    <!-- Notifications -->
+                    <button class="relative p-1.5 rounded-full hover:bg-slate-100 transition">
+                        <i class="fas fa-bell text-slate-500 text-lg"></i>
+                        <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">3</span>
+                    </button>
+                    <!-- User Profile -->
+                    <div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold text-sm">
+                            PC
+                        </div>
+                        <span class="text-sm font-medium text-slate-700 hidden sm:block">Program Controller</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content (Dynamic) -->
+            <main class="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50/50">
+                {% block content %}
+                <!-- Default Dashboard Content -->
+
+                <!-- Welcome Banner -->
+                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-700 p-7 md:p-8 mb-6 text-white shadow-lg shadow-indigo-200/50">
+                    <div class="absolute -right-12 -top-12 w-56 h-56 bg-white/10 rounded-full"></div>
+                    <div class="absolute right-20 -bottom-10 w-32 h-32 bg-white/10 rounded-full"></div>
+                    <div class="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+                        <div>
+                            <p class="text-indigo-100 text-xs font-medium uppercase tracking-wider">{{ today }}</p>
+                            <h2 class="text-2xl font-bold mt-1">Welcome back, Program Controller</h2>
+                            <p class="text-indigo-100 mt-1.5 max-w-md text-sm">
+                                {% if new_programs %}
+                                    You have <span class="font-semibold text-white">{{ new_programs|length }}</span> new program{{ new_programs|length|pluralize }} waiting to be set up
+                                    {% if stats.pending_actions %} and <span class="font-semibold text-white">{{ stats.pending_actions }}</span> pending action{{ stats.pending_actions|pluralize }}{% endif %}.
+                                {% else %}
+                                    You're all caught up — no new programs are waiting on you right now.
+                                {% endif %}
+                            </p>
+                        </div>
+                        <a href="{% url 'program_list' %}" class="inline-flex items-center gap-2 bg-white text-indigo-600 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-50 transition shadow-sm flex-shrink-0">
+                            View My Programs <i class="fas fa-arrow-right text-xs"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Stat Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-sm text-slate-400 font-medium">Assigned Programs</div>
+                        <div class="text-2xl font-bold text-slate-800">{{ stats.assigned_programs|default:0 }}</div>
+                        <span class="text-xs text-slate-400">Assigned by Dean</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-sm text-slate-400 font-medium">PEOs Defined</div>
+                        <div class="text-2xl font-bold text-slate-800">{{ stats.peos_defined|default:0 }}</div>
+                        <span class="text-xs text-slate-400">Across all programs</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-sm text-slate-400 font-medium">PLOs Defined</div>
+                        <div class="text-2xl font-bold text-slate-800">{{ stats.plos_defined|default:0 }}</div>
+                        <span class="text-xs text-slate-400">Across all programs</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-sm text-slate-400 font-medium">Pending Actions</div>
+                        <div class="text-2xl font-bold text-slate-800">{{ stats.pending_actions|default:0 }}</div>
+                        <span class="text-xs text-amber-500"><i class="fas fa-clock"></i> Needs your review</span>
+                    </div>
+                </div>
+
+                <!-- New Programs Awaiting Setup + Recent Activity -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- New Programs Awaiting Setup -->
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="flex items-center justify-between gap-3 p-5 border-b border-slate-100">
+                            <div>
+                                <h3 class="text-base font-semibold text-slate-800">New Programs Awaiting Setup</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Assigned by the Dean, not yet managed (v0)</p>
+                            </div>
+                            <span class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full flex-shrink-0">{{ new_programs|length }} pending</span>
+                        </div>
+                        <div class="divide-y divide-slate-100">
+                            {% for program in new_programs %}
+                            <div class="flex items-center justify-between gap-4 px-5 py-4">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-graduation-cap"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-slate-700">{{ program.code }}</p>
+                                        <p class="text-xs text-slate-400 truncate">{{ program.name }}</p>
+                                    </div>
+                                </div>
+                                <a href="{% url 'program_create' %}?id={{ program.id }}&code={{ program.code|urlencode }}&name={{ program.name|urlencode }}"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition shadow-sm shadow-indigo-200 flex-shrink-0">
+                                    <i class="fas fa-sliders-h text-[10px]"></i> Manage
+                                </a>
+                            </div>
+                            {% empty %}
+                            <div class="px-5 py-10 text-center text-slate-400 text-sm">
+                                <i class="fas fa-check-circle text-2xl block mb-2 text-emerald-300"></i>
+                                You're all caught up — no pending programs.
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="p-5 border-b border-slate-100">
+                            <h3 class="text-base font-semibold text-slate-800">Recent Activity</h3>
+                        </div>
+                        <ul class="divide-y divide-slate-100">
+                            {% for activity in recent_activity %}
+                            <li class="flex items-start gap-3 px-5 py-4">
+                                <div class="w-8 h-8 rounded-full bg-{{ activity.color }}-50 text-{{ activity.color }}-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <i class="fas {{ activity.icon }} text-xs"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm text-slate-600">{{ activity.text }}</p>
+                                    <p class="text-xs text-slate-400 mt-0.5">{{ activity.time }}</p>
+                                </div>
+                            </li>
+                            {% empty %}
+                            <li class="px-5 py-10 text-center text-slate-400 text-sm">No recent activity yet.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                </div>
+                {% endblock %}
+            </main>
+        </div>
+    </div>
+
+</body>
+</html>

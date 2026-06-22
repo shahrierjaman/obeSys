@@ -1,0 +1,974 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Manage Program{% endblock %}
+
+{% block content %}
+
+<!-- ==================== RICH TEXT EDITOR STYLES ==================== -->
+<style>
+    .rich-editor-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        flex-wrap: wrap;
+    }
+    .rich-editor-toolbar button {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 5px;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+    }
+    .rich-editor-toolbar button:hover {
+        background: #e0e7ff;
+        color: #4f46e5;
+    }
+    .rich-editor-toolbar button.active {
+        background: #e0e7ff;
+        color: #4f46e5;
+    }
+    .rich-editor-toolbar .toolbar-sep {
+        width: 1px;
+        height: 18px;
+        background: #e2e8f0;
+        margin: 0 3px;
+    }
+    .rich-editor-content {
+        min-height: 90px;
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 0 0 8px 8px;
+        font-size: 13.5px;
+        color: #334155;
+        outline: none;
+        line-height: 1.6;
+        background: #fff;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .rich-editor-content:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+    .rich-editor-content[placeholder]:empty:before {
+        content: attr(placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+    .peo-item, .plo-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 16px;
+        transition: box-shadow 0.15s;
+    }
+    .peo-item:hover, .plo-item:hover {
+        box-shadow: 0 2px 8px rgba(99,102,241,0.07);
+    }
+    .peo-label-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #4f46e5;
+        background: #e0e7ff;
+        border-radius: 6px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+        margin-bottom: 10px;
+    }
+    .plo-label-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #0369a1;
+        background: #e0f2fe;
+        border-radius: 6px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+        margin-bottom: 10px;
+    }
+    .peo-title-input {
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        padding: 5px 10px;
+        outline: none;
+        width: 100%;
+        background: #fff;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .peo-title-input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.10);
+    }
+    .peo-title-input::placeholder {
+        color: #94a3b8;
+        font-weight: 400;
+    }
+
+    /* Read-only basic detail fields (code & name come from the Dean's assignment) */
+    .locked-field {
+        background: #f1f5f9;
+        color: #64748b;
+        cursor: not-allowed;
+    }
+
+    /* Mission dynamic rows */
+    .mission-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    /* Assessment tool dynamic rows */
+    .assessment-custom-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Mapping table enhancements (PEOs in columns, PLOs in rows) */
+    #mapping-table th, #mapping-table td {
+        white-space: nowrap;
+    }
+    #mapping-table .mapping-col-header {
+        writing-mode: horizontal-tb;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .mapping-checkbox {
+        width: 17px;
+        height: 17px;
+        accent-color: #4f46e5;
+        cursor: pointer;
+    }
+    #peo-empty-state, #plo-empty-state {
+        transition: opacity 0.2s;
+    }
+
+    /* PLO import dropdown */
+    #plo-import-menu {
+        animation: dropdownFade 0.12s ease-out;
+    }
+    @keyframes dropdownFade {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<div class="flex flex-col lg:flex-row gap-8">
+
+    <!-- ==================== STICKY SIDEBAR NAV ==================== -->
+    <aside class="lg:w-64 flex-shrink-0">
+        <div class="lg:sticky lg:top-6 bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-1">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 pb-2 border-b border-slate-100">Sections</p>
+            <a href="#section-basic" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-info-circle w-4 text-center"></i> Basic Details
+            </a>
+            <a href="#section-mission" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-flag w-4 text-center"></i> Mission & Vision
+            </a>
+            <a href="#section-peos" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-bullseye w-4 text-center"></i> PEOs
+            </a>
+            <a href="#section-plos" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-tasks w-4 text-center"></i> PLOs
+            </a>
+            <a href="#section-mapping" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-link w-4 text-center"></i> PEO-PLO Mapping
+            </a>
+            <a href="#section-settings" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-cog w-4 text-center"></i> Settings & Tools
+            </a>
+            <a href="#section-version" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-code-branch w-4 text-center"></i> Versioning
+            </a>
+        </div>
+    </aside>
+
+    <!-- ==================== MAIN FORM ==================== -->
+    <div class="flex-1 space-y-6">
+
+        <!-- Form Header -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Manage Program</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Configure mission, outcomes, mapping and assessment tools for this program.</p>
+                </div>
+                <div class="flex gap-2 mt-3 sm:mt-0">
+                    <a href="{% url 'program_list' %}" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                        <i class="fas fa-times mr-1"></i> Cancel
+                    </a>
+                    <button type="submit" form="program-form" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200">
+                        <i class="fas fa-save mr-1"></i> Save Program Details
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== FORM (wraps all sections) ==================== -->
+        <form id="program-form" method="post" action="#">
+            {% csrf_token %}
+            <input type="hidden" name="program_id" value="{{ program_id }}" />
+
+            <!-- SECTION 1: Basic Details -->
+            <section id="section-basic" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-info-circle text-indigo-500"></i> Basic Details
+                </h3>
+                <p class="text-xs text-slate-400 mt-1 mb-4">Program code and name are assigned by the Dean and can't be changed from here.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Program Code</label>
+                        <input type="text" name="code" value="{{ code }}" readonly
+                               class="locked-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Program Name</label>
+                        <input type="text" name="name" value="{{ name }}" readonly
+                               class="locked-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: Mission & Vision -->
+            <section id="section-mission" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-flag text-indigo-500"></i> Mission & Vision
+                </h3>
+
+                <!-- Institution Vision: single field -->
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Institution Vision</label>
+                    <textarea rows="3" name="inst_vision" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="What the institution aspires to become..."></textarea>
+                </div>
+
+                <!-- Institution Mission: dynamic, any number -->
+                <div class="mt-5">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-sm font-medium text-slate-700">Institution Mission</label>
+                        <button type="button" id="add-inst-mission-btn"
+                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-xs font-medium transition">
+                            <i class="fas fa-plus text-xs"></i> Add Mission
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-2">An institution can have any number of mission statements.</p>
+                    <div id="inst-mission-list" class="space-y-2">
+                        <!-- mission rows injected by JS -->
+                    </div>
+                </div>
+
+                <hr class="my-6 border-slate-100" />
+
+                <!-- Program Vision: single field -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Program Vision <span class="text-red-500">*</span></label>
+                    <textarea rows="3" name="program_vision" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="What this program aspires to become..."></textarea>
+                </div>
+
+                <!-- Program Mission: dynamic, any number -->
+                <div class="mt-5">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-sm font-medium text-slate-700">Program Mission <span class="text-red-500">*</span></label>
+                        <button type="button" id="add-mission-btn"
+                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-xs font-medium transition">
+                            <i class="fas fa-plus text-xs"></i> Add Mission
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-2">A program can have any number of mission statements.</p>
+                    <div id="mission-list" class="space-y-2">
+                        <!-- mission rows injected by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== SECTION 3: PEOs ==================== -->
+            <section id="section-peos" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-bullseye text-indigo-500"></i> Program Educational Objectives (PEOs)
+                    </h3>
+                    <button type="button" id="add-peo-btn"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-plus text-xs"></i> Add PEO
+                    </button>
+                </div>
+                <p class="text-xs text-slate-400 mt-1 mb-4">PEOs describe what graduates are expected to achieve 3–5 years after graduation.</p>
+
+                <div id="peo-list" class="space-y-4">
+                    <!-- PEO items injected here by JS -->
+                </div>
+
+                <!-- Empty state -->
+                <div id="peo-empty-state" class="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">
+                    <i class="fas fa-bullseye text-2xl block mb-2 text-slate-300"></i>
+                    No PEOs added yet. Click <span class="font-medium text-indigo-400">"Add PEO"</span> to define program educational objectives.
+                </div>
+            </section>
+
+            <!-- ==================== SECTION 4: PLOs ==================== -->
+            <section id="section-plos" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <div class="flex items-center justify-between flex-wrap gap-3">
+                    <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-tasks text-indigo-500"></i> Program Learning Outcomes (PLOs)
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <!-- Import PLOs dropdown -->
+                        <div class="relative" id="plo-import-dropdown">
+                            <button type="button" id="plo-import-toggle"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-600 hover:text-sky-800 rounded-lg text-sm font-medium transition">
+                                <i class="fas fa-file-import text-xs"></i> Import PLOs <i class="fas fa-chevron-down text-[10px] ml-0.5"></i>
+                            </button>
+                            <div id="plo-import-menu"
+                                 data-abet-url="{% url 'plo_preset_import' source='abet' %}"
+                                 data-baete-url="{% url 'plo_preset_import' source='baete' %}"
+                                 class="hidden absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                                <button type="button" data-source="abet" class="plo-import-option w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center gap-2">
+                                    <i class="fas fa-certificate text-xs text-slate-400"></i> Import from ABET
+                                </button>
+                                <button type="button" data-source="baete" class="plo-import-option w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center gap-2 border-t border-slate-100">
+                                    <i class="fas fa-certificate text-xs text-slate-400"></i> Import from BAETE
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" id="add-plo-btn"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-sm font-medium transition">
+                            <i class="fas fa-plus text-xs"></i> Add PLO
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-1 mb-4">PLOs describe what students will know and be able to do upon graduation.</p>
+
+                <div id="plo-list" class="space-y-4">
+                    <!-- PLO items injected here by JS -->
+                </div>
+
+                <!-- Empty state -->
+                <div id="plo-empty-state" class="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">
+                    <i class="fas fa-tasks text-2xl block mb-2 text-slate-300"></i>
+                    No PLOs added yet. Click <span class="font-medium text-indigo-400">"Add PLO"</span> or import a preset above.
+                </div>
+            </section>
+
+            <!-- ==================== SECTION 5: PEO-PLO Mapping ==================== -->
+            <section id="section-mapping" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-link text-indigo-500"></i> PEO-PLO Mapping
+                </h3>
+                <p class="text-xs text-slate-400 mt-1 mb-4">Check the box where a PLO contributes to a PEO. Each PEO is a column; each PLO is a row.</p>
+
+                <div class="overflow-x-auto">
+                    <table id="mapping-table" class="w-full text-sm border border-slate-200 rounded-lg">
+                        <thead>
+                            <tr id="mapping-header-row" class="bg-slate-50 border-b border-slate-200">
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 min-w-[110px]">PLO \ PEO</th>
+                                <!-- PEO columns injected by JS -->
+                            </tr>
+                        </thead>
+                        <tbody id="mapping-body">
+                            <!-- PLO rows injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mapping empty state -->
+                <div id="mapping-empty-state" class="mt-2 hidden">
+                    <div class="px-4 py-6 text-center text-slate-400 text-sm border border-slate-200 rounded-lg">
+                        <i class="fas fa-info-circle mr-1"></i> Add PEOs and PLOs first to enable mapping.
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 6: Settings & Tools -->
+            <section id="section-settings" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-cog text-indigo-500"></i> Settings & Assessment Tools
+                </h3>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Assessment Tools</label>
+                    <div id="assessment-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Quiz" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Quiz</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Midterm" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Midterm</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Final Project" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Final Project</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Lab Report" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Lab Report</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Presentation" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Presentation</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Case Study" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Case Study</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Term Paper" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Term Paper</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Practical Exam" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Practical Exam</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Viva / Oral Exam" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Viva / Oral Exam</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="assessment_tools" value="Portfolio" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+                            <span class="text-sm text-slate-600">Portfolio</span>
+                        </div>
+                    </div>
+
+                    <!-- Custom assessment tools injected here by JS -->
+                    <div id="custom-assessment-list" class="space-y-2 mt-3"></div>
+
+                    <button type="button" id="add-assessment-btn"
+                        class="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-plus text-xs"></i> Add Assessment Tool
+                    </button>
+                </div>
+            </section>
+
+            <!-- SECTION 7: Versioning -->
+            <section id="section-version" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-code-branch text-indigo-500"></i> Versioning
+                </h3>
+                <div class="mt-3 flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-lg text-sm text-indigo-700">
+                    <i class="fas fa-info-circle mt-0.5"></i>
+                    <span>The first time you manage this program, it will be stored as <strong>Version 1</strong>. Future updates and version history are handled from the program edit page.</span>
+                </div>
+            </section>
+
+            <!-- Form Footer -->
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                <a href="{% url 'program_list' %}" class="px-6 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">Cancel</a>
+                <button type="submit" form="program-form" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200">
+                    <i class="fas fa-save mr-1"></i> Save Program Details
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+
+<!-- ==================== PEO / PLO / MISSION / ASSESSMENT JAVASCRIPT ==================== -->
+<script>
+(function () {
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    // Each item: { id, editorEl }   (title only for PEO/PLO, kept in DOM via data attr)
+    const peos = [];
+    const plos = [];
+
+    // Mapping state: mappingState[peoId][ploId] = true/false
+    const mappingState = {};
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Convert a 0-based index to an Excel-style letter label: 0→a, 1→b, …, 25→z, 26→aa
+     */
+    function indexToLetter(n) {
+        let result = '';
+        n += 1;
+        while (n > 0) {
+            const rem = (n - 1) % 26;
+            result = String.fromCharCode(97 + rem) + result;
+            n = Math.floor((n - 1) / 26);
+        }
+        return result;
+    }
+
+    // ── Rich-text toolbar HTML (shared factory) ────────────────────────────────
+    function buildToolbar(editorId) {
+        return `
+        <div class="rich-editor-toolbar" data-editor="${editorId}">
+            <button type="button" title="Bold" data-cmd="bold"><i class="fas fa-bold"></i></button>
+            <button type="button" title="Italic" data-cmd="italic"><i class="fas fa-italic"></i></button>
+            <button type="button" title="Underline" data-cmd="underline"><i class="fas fa-underline"></i></button>
+            <div class="toolbar-sep"></div>
+            <button type="button" title="Superscript" data-cmd="superscript"><i class="fas fa-superscript"></i></button>
+            <button type="button" title="Subscript" data-cmd="subscript"><i class="fas fa-subscript"></i></button>
+            <div class="toolbar-sep"></div>
+            <button type="button" title="Ordered list" data-cmd="insertOrderedList"><i class="fas fa-list-ol"></i></button>
+            <button type="button" title="Unordered list" data-cmd="insertUnorderedList"><i class="fas fa-list-ul"></i></button>
+            <div class="toolbar-sep"></div>
+            <button type="button" title="Remove formatting" data-cmd="removeFormat"><i class="fas fa-remove-format"></i></button>
+        </div>`;
+    }
+
+    function buildEditor(editorId, placeholder) {
+        return `<div
+            id="${editorId}"
+            class="rich-editor-content"
+            contenteditable="true"
+            placeholder="${placeholder}"
+            spellcheck="true"
+        ></div>`;
+    }
+
+    // Wire toolbar buttons → execCommand on their linked editor
+    function wireToolbar(toolbarEl) {
+        toolbarEl.addEventListener('mousedown', function (e) {
+            const btn = e.target.closest('[data-cmd]');
+            if (!btn) return;
+            e.preventDefault(); // prevent editor from losing focus
+            const cmd = btn.dataset.cmd;
+            const editorId = toolbarEl.dataset.editor;
+            const editorEl = document.getElementById(editorId);
+            if (editorEl) editorEl.focus();
+            document.execCommand(cmd, false, null);
+            // Toggle active state for bold/italic/underline
+            updateToolbarState(toolbarEl);
+        });
+    }
+
+    function updateToolbarState(toolbarEl) {
+        ['bold', 'italic', 'underline', 'superscript', 'subscript'].forEach(cmd => {
+            const btn = toolbarEl.querySelector(`[data-cmd="${cmd}"]`);
+            if (!btn) return;
+            if (document.queryCommandState(cmd)) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    // Keep toolbar buttons highlighted when cursor is inside styled text
+    document.addEventListener('selectionchange', function () {
+        document.querySelectorAll('.rich-editor-toolbar').forEach(function (tb) {
+            updateToolbarState(tb);
+        });
+    });
+
+    // ── PEO ────────────────────────────────────────────────────────────────────
+
+    const peoList       = document.getElementById('peo-list');
+    const peoEmpty      = document.getElementById('peo-empty-state');
+    const addPeoBtn     = document.getElementById('add-peo-btn');
+
+    let peoIdCounter = 0;
+
+    function renderPeoLabels() {
+        peos.forEach(function (peo, i) {
+            const badge = document.querySelector(`[data-peo-badge="${peo.id}"]`);
+            if (badge) badge.textContent = 'PEO ' + (i + 1);
+        });
+    }
+
+    function addPeo(titleVal, contentHtml) {
+        const id       = 'peo-' + (++peoIdCounter);
+        const editorId = 'editor-' + id;
+        const index    = peos.length + 1;
+
+        const wrapper  = document.createElement('div');
+        wrapper.className = 'peo-item';
+        wrapper.dataset.peoId = id;
+        wrapper.innerHTML = `
+            <div class="flex items-start justify-between gap-3 mb-2">
+                <span class="peo-label-badge" data-peo-badge="${id}">PEO ${index}</span>
+                <button type="button" class="peo-delete-btn text-red-400 hover:text-red-600 text-sm mt-0.5 transition" data-target="${id}" title="Remove PEO">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+            <div class="mb-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1">Title <span class="text-slate-300 font-normal">(e.g., Professionalism)</span></label>
+                <input type="text"
+                    class="peo-title-input"
+                    placeholder="e.g., Professionalism"
+                    value="${titleVal || ''}"
+                    data-peo-title="${id}"
+                />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Description</label>
+                ${buildToolbar(editorId)}
+                ${buildEditor(editorId, 'Describe what graduates are expected to achieve 3–5 years after graduation…')}
+            </div>
+        `;
+
+        peoList.appendChild(wrapper);
+
+        // Wire toolbar
+        const toolbar = wrapper.querySelector('.rich-editor-toolbar');
+        wireToolbar(toolbar);
+
+        // Set initial content if editing
+        const editorEl = document.getElementById(editorId);
+        if (contentHtml) editorEl.innerHTML = contentHtml;
+
+        // Delete button
+        wrapper.querySelector('.peo-delete-btn').addEventListener('click', function () {
+            removePeo(id);
+        });
+
+        // Track in state
+        peos.push({ id, editorEl });
+        mappingState[id] = {};
+        plos.forEach(function (plo) {
+            mappingState[id][plo.id] = false;
+        });
+
+        togglePeoEmpty();
+        rebuildMappingTable();
+    }
+
+    function removePeo(id) {
+        const idx = peos.findIndex(p => p.id === id);
+        if (idx === -1) return;
+        peos.splice(idx, 1);
+        delete mappingState[id];
+        const el = peoList.querySelector(`[data-peo-id="${id}"]`);
+        if (el) el.remove();
+        renderPeoLabels();
+        togglePeoEmpty();
+        rebuildMappingTable();
+    }
+
+    function togglePeoEmpty() {
+        peoEmpty.style.display = peos.length === 0 ? 'block' : 'none';
+    }
+
+    addPeoBtn.addEventListener('click', function () {
+        addPeo();
+    });
+
+    // ── PLO ────────────────────────────────────────────────────────────────────
+
+    const ploList   = document.getElementById('plo-list');
+    const ploEmpty  = document.getElementById('plo-empty-state');
+    const addPloBtn = document.getElementById('add-plo-btn');
+
+    let ploIdCounter = 0;
+
+    function renderPloLabels() {
+        plos.forEach(function (plo, i) {
+            const badge = document.querySelector(`[data-plo-badge="${plo.id}"]`);
+            if (badge) badge.textContent = indexToLetter(i) + '.';
+        });
+    }
+
+    function addPlo(titleVal, contentHtml) {
+        const id       = 'plo-' + (++ploIdCounter);
+        const editorId = 'editor-' + id;
+        const letter   = indexToLetter(plos.length);
+
+        const wrapper  = document.createElement('div');
+        wrapper.className = 'plo-item';
+        wrapper.dataset.ploId = id;
+        wrapper.innerHTML = `
+            <div class="flex items-start justify-between gap-3 mb-2">
+                <span class="plo-label-badge" data-plo-badge="${id}">${letter}.</span>
+                <button type="button" class="plo-delete-btn text-red-400 hover:text-red-600 text-sm mt-0.5 transition" data-target="${id}" title="Remove PLO">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+            <div class="mb-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1">Title <span class="text-slate-300 font-normal">(e.g., Engineering knowledge)</span></label>
+                <input type="text"
+                    class="peo-title-input"
+                    placeholder="e.g., Engineering knowledge"
+                    value="${titleVal || ''}"
+                    data-plo-title="${id}"
+                />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Description</label>
+                ${buildToolbar(editorId)}
+                ${buildEditor(editorId, 'Describe what students will know and be able to do upon graduation…')}
+            </div>
+        `;
+
+        ploList.appendChild(wrapper);
+
+        // Wire toolbar
+        const toolbar = wrapper.querySelector('.rich-editor-toolbar');
+        wireToolbar(toolbar);
+
+        // Set initial content if editing
+        const editorEl = document.getElementById(editorId);
+        if (contentHtml) editorEl.innerHTML = contentHtml;
+
+        // Delete button
+        wrapper.querySelector('.plo-delete-btn').addEventListener('click', function () {
+            removePlo(id);
+        });
+
+        // Track in state
+        plos.push({ id, editorEl });
+        // Add this PLO row to every existing PEO's mapping state
+        peos.forEach(function (peo) {
+            if (!mappingState[peo.id]) mappingState[peo.id] = {};
+            mappingState[peo.id][id] = false;
+        });
+
+        togglePloEmpty();
+        rebuildMappingTable();
+    }
+
+    function removePlo(id) {
+        const idx = plos.findIndex(p => p.id === id);
+        if (idx === -1) return;
+        plos.splice(idx, 1);
+        // Remove this PLO from all PEO mapping states
+        peos.forEach(function (peo) {
+            if (mappingState[peo.id]) delete mappingState[peo.id][id];
+        });
+        const el = ploList.querySelector(`[data-plo-id="${id}"]`);
+        if (el) el.remove();
+        renderPloLabels();
+        togglePloEmpty();
+        rebuildMappingTable();
+    }
+
+    function togglePloEmpty() {
+        ploEmpty.style.display = plos.length === 0 ? 'block' : 'none';
+    }
+
+    addPloBtn.addEventListener('click', function () {
+        addPlo();
+    });
+
+    // ── PLO Import Dropdown (ABET / BAETE presets) ─────────────────────────────
+
+    const ploImportToggle = document.getElementById('plo-import-toggle');
+    const ploImportMenu    = document.getElementById('plo-import-menu');
+
+    ploImportToggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        ploImportMenu.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!ploImportMenu.contains(e.target) && e.target !== ploImportToggle) {
+            ploImportMenu.classList.add('hidden');
+        }
+    });
+
+    ploImportMenu.querySelectorAll('.plo-import-option').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const source = btn.dataset.source; // 'abet' | 'baete'
+            const url = source === 'abet' ? ploImportMenu.dataset.abetUrl : ploImportMenu.dataset.baeteUrl;
+            ploImportMenu.classList.add('hidden');
+
+            const originalLabel = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs text-slate-400"></i> Importing…';
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    (data.plos || []).forEach(function (item) {
+                        addPlo(item.title, item.description);
+                    });
+                })
+                .catch(function () {
+                    alert('Could not import PLOs right now. Please try again.');
+                })
+                .finally(function () {
+                    btn.innerHTML = originalLabel;
+                });
+        });
+    });
+
+    // ── Mapping Table (PEOs = columns, PLOs = rows) ─────────────────────────────
+
+    const mappingTable      = document.getElementById('mapping-table');
+    const mappingHeaderRow  = document.getElementById('mapping-header-row');
+    const mappingBody       = document.getElementById('mapping-body');
+    const mappingEmptyState = document.getElementById('mapping-empty-state');
+
+    function getPeoLabel(id) {
+        const idx = peos.findIndex(p => p.id === id);
+        return idx >= 0 ? 'PEO ' + (idx + 1) : '';
+    }
+
+    function getPloLabel(id) {
+        const idx = plos.findIndex(p => p.id === id);
+        return idx >= 0 ? indexToLetter(idx) + '.' : '';
+    }
+
+    function getPeoTitle(id) {
+        const el = document.querySelector(`[data-peo-title="${id}"]`);
+        return el ? (el.value || '') : '';
+    }
+
+    function rebuildMappingTable() {
+        const hasPeos = peos.length > 0;
+        const hasPlos = plos.length > 0;
+
+        if (!hasPeos || !hasPlos) {
+            mappingTable.style.display = 'none';
+            mappingEmptyState.classList.remove('hidden');
+            return;
+        }
+
+        mappingTable.style.display = '';
+        mappingEmptyState.classList.add('hidden');
+
+        // Rebuild header: one column per PEO
+        while (mappingHeaderRow.children.length > 1) {
+            mappingHeaderRow.removeChild(mappingHeaderRow.lastChild);
+        }
+        peos.forEach(function (peo) {
+            const th = document.createElement('th');
+            th.className = 'px-3 py-2 text-center text-xs font-semibold text-slate-500 mapping-col-header';
+            th.title = getPeoTitle(peo.id);
+            th.textContent = getPeoLabel(peo.id);
+            mappingHeaderRow.appendChild(th);
+        });
+
+        // Rebuild body: one row per PLO
+        mappingBody.innerHTML = '';
+        plos.forEach(function (plo) {
+            const tr = document.createElement('tr');
+            tr.className = 'border-b border-slate-100 hover:bg-slate-50/50';
+
+            const tdLabel = document.createElement('td');
+            tdLabel.className = 'px-4 py-2.5 font-semibold text-slate-700 text-xs whitespace-nowrap';
+            tdLabel.textContent = getPloLabel(plo.id);
+            tr.appendChild(tdLabel);
+
+            peos.forEach(function (peo) {
+                if (!mappingState[peo.id]) mappingState[peo.id] = {};
+                const td = document.createElement('td');
+                td.className = 'px-3 py-2.5 text-center';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.className = 'mapping-checkbox';
+                cb.checked = !!mappingState[peo.id][plo.id];
+                cb.title = getPeoLabel(peo.id) + ' ↔ PLO ' + getPloLabel(plo.id);
+                cb.addEventListener('change', function () {
+                    if (!mappingState[peo.id]) mappingState[peo.id] = {};
+                    mappingState[peo.id][plo.id] = cb.checked;
+                });
+                td.appendChild(cb);
+                tr.appendChild(td);
+            });
+
+            mappingBody.appendChild(tr);
+        });
+    }
+
+    // ── Mission (dynamic rows) — shared by Institution & Program ───────────────
+    // Same pattern for both: Vision is a single static field (in the HTML),
+    // Mission is an open-ended list of rows with an "Add Mission" button.
+
+    function createMissionList(listEl, addBtnEl, inputName, placeholder) {
+        let idCounter = 0;
+
+        function addMission(value) {
+            const id = inputName.replace(/[^a-zA-Z0-9]/g, '') + '-' + (++idCounter);
+            const row = document.createElement('div');
+            row.className = 'mission-item';
+            row.dataset.missionId = id;
+            row.innerHTML = `
+                <textarea rows="2" name="${inputName}"
+                    class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
+                    placeholder="${placeholder}">${value || ''}</textarea>
+                <button type="button" class="mission-delete-btn text-red-400 hover:text-red-600 text-sm mt-2 transition" title="Remove this mission statement">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            `;
+            listEl.appendChild(row);
+            row.querySelector('.mission-delete-btn').addEventListener('click', function () {
+                row.remove();
+            });
+        }
+
+        addBtnEl.addEventListener('click', function () {
+            addMission();
+        });
+
+        return addMission;
+    }
+
+    // Institution Mission — seeded with the previous default statement
+    const addInstMission = createMissionList(
+        document.getElementById('inst-mission-list'),
+        document.getElementById('add-inst-mission-btn'),
+        'inst_mission[]',
+        'State one mission of the institution…'
+    );
+    addInstMission('To advance knowledge through excellence in teaching and research.');
+
+    // Program Mission — starts with one empty field
+    const addMission = createMissionList(
+        document.getElementById('mission-list'),
+        document.getElementById('add-mission-btn'),
+        'program_mission[]',
+        'State one mission of the program…'
+    );
+    addMission();
+
+    // ── Assessment Tools (custom additions) ─────────────────────────────────────
+
+    const customAssessmentList = document.getElementById('custom-assessment-list');
+    const addAssessmentBtn     = document.getElementById('add-assessment-btn');
+    let assessmentIdCounter    = 0;
+
+    function addCustomAssessment() {
+        const id = 'assessment-' + (++assessmentIdCounter);
+        const row = document.createElement('div');
+        row.className = 'assessment-custom-item';
+        row.dataset.assessmentId = id;
+        row.innerHTML = `
+            <input type="checkbox" name="assessment_tools" checked class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+            <input type="text" name="assessment_tools_custom_label" placeholder="Enter assessment tool name"
+                class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button type="button" class="assessment-delete-btn text-red-400 hover:text-red-600 text-sm transition" title="Remove">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        `;
+        customAssessmentList.appendChild(row);
+        row.querySelector('.assessment-delete-btn').addEventListener('click', function () {
+            row.remove();
+        });
+    }
+
+    addAssessmentBtn.addEventListener('click', function () {
+        addCustomAssessment();
+    });
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    togglePeoEmpty();
+    togglePloEmpty();
+    mappingTable.style.display = 'none';
+    mappingEmptyState.classList.remove('hidden');
+
+})();
+</script>
+
+{% endblock %}

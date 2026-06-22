@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Section Management{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-slate-800">Section Management</h1>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    {{ cohort.name }}
+                </span>
+            </div>
+            <p class="text-sm text-slate-500 mt-0.5">
+                {{ cohort.program_code }} - {{ cohort.program_name }}
+            </p>
+            <p class="text-xs text-slate-400 mt-1">
+                <i class="fas fa-info-circle mr-1"></i>
+                Divide the cohort into smaller sections for teaching and classroom management.
+            </p>
+        </div>
+        <div class="flex gap-2 mt-3 sm:mt-0">
+            <a href="{% url 'cohort_detail' cohort.id %}" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Cohort
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <span class="text-xs text-slate-400 block">Total Students</span>
+        <span class="text-2xl font-bold text-slate-800">{{ cohort.student_count }}</span>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <span class="text-xs text-slate-400 block">Total Sections</span>
+        <span class="text-2xl font-bold text-slate-800">{{ sections|length }}</span>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <span class="text-xs text-slate-400 block">Students per Section</span>
+        <span class="text-2xl font-bold text-slate-800">
+            {% if sections|length > 0 %}
+                {% widthratio cohort.student_count sections|length 1 %}
+            {% else %}
+                0
+            {% endif %}
+        </span>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <!-- LEFT: Create New Section -->
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sticky top-6">
+            <h3 class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <i class="fas fa-plus-circle text-indigo-500"></i> Create New Section
+            </h3>
+            
+            <form id="section-form" class="space-y-4">
+                <!-- Section Name -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Section Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="section-name" placeholder="e.g., Section A" 
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                
+                <!-- Instructor -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Instructor</label>
+                    <select id="section-instructor" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Select an instructor...</option>
+                        {% for instructor in instructors %}
+                        <option value="{{ instructor.id }}">{{ instructor.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Students (Optional: can be added later) -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Assign Students</label>
+                    <p class="text-xs text-slate-400">Students can be assigned to sections from the Cohort Detail page.</p>
+                </div>
+                
+                <button type="submit" class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200">
+                    <i class="fas fa-plus mr-2"></i> Create Section
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- RIGHT: Sections List -->
+    <div class="lg:col-span-2">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                    <i class="fas fa-layer-group text-indigo-500"></i> Sections
+                    <span id="section-count" class="text-xs font-normal text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full">{{ sections|length }}</span>
+                </h3>
+            </div>
+            
+            <!-- Sections Grid -->
+            <div class="p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for section in sections %}
+                    <div class="border border-slate-200 rounded-lg p-4 hover:shadow-md transition">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <h4 class="font-semibold text-slate-800">{{ section.name }}</h4>
+                                <p class="text-xs text-slate-500 mt-0.5">
+                                    <i class="fas fa-user-tie mr-1"></i> 
+                                    {{ section.instructor }}
+                                </p>
+                            </div>
+                            <div class="flex gap-1">
+                                <button class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition" title="Edit">
+                                    <i class="fas fa-pen text-xs"></i>
+                                </button>
+                                <button class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete">
+                                    <i class="fas fa-trash-alt text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 flex items-center gap-4 text-xs">
+                            <span class="flex items-center gap-1 text-slate-500">
+                                <i class="fas fa-user-graduate"></i> 
+                                {{ section.student_count }} students
+                            </span>
+                            <span class="flex items-center gap-1">
+                                {% if section.status == 'Active' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1"></span> Active
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                    <i class="fas fa-clock mr-1"></i> Pending
+                                </span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <!-- View Students Button -->
+                        <a href="#" class="mt-3 inline-block text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                            <i class="fas fa-arrow-right mr-1"></i> View Students
+                        </a>
+                    </div>
+                    {% empty %}
+                    <div class="col-span-2 flex flex-col items-center justify-center py-12 text-slate-400">
+                        <i class="fas fa-layer-group text-4xl text-slate-300 mb-3"></i>
+                        <p class="text-sm font-medium">No sections created yet</p>
+                        <p class="text-xs">Use the form on the left to create sections</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Info Box -->
+        <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                <div class="text-sm text-blue-700">
+                    <p class="font-semibold">Section Management Tips:</p>
+                    <ul class="list-disc list-inside mt-1 space-y-0.5 text-blue-600">
+                        <li>Create sections to divide students into manageable groups</li>
+                        <li>Assign instructors to each section</li>
+                        <li>Students can be moved between sections from the Cohort Detail page</li>
+                        <li>Each section can have its own assessment and grading</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Section Management JavaScript loaded!');
+        
+        const sectionForm = document.getElementById('section-form');
+        const sectionName = document.getElementById('section-name');
+        const sectionInstructor = document.getElementById('section-instructor');
+        const sectionCount = document.getElementById('section-count');
+        const sectionGrid = document.querySelector('.grid-cols-1.md\\:grid-cols-2');
+        
+        // Handle form submission
+        sectionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const name = sectionName.value.trim();
+            const instructor = sectionInstructor.value;
+            
+            if (!name) {
+                alert('Please enter a section name');
+                sectionName.focus();
+                return;
+            }
+            
+            console.log('Creating section:', { name, instructor });
+            
+            // Simulate creation
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Creating...';
+            submitBtn.disabled = true;
+            
+            setTimeout(function() {
+                // Get instructor name
+                let instructorName = 'Not Assigned';
+                if (instructor) {
+                    const option = document.querySelector(`#section-instructor option[value="${instructor}"]`);
+                    if (option) instructorName = option.textContent;
+                }
+                
+                // Add new section card
+                const newSection = document.createElement('div');
+                newSection.className = 'border border-indigo-300 rounded-lg p-4 hover:shadow-md transition bg-indigo-50/30';
+                newSection.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h4 class="font-semibold text-slate-800">${name}</h4>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                <i class="fas fa-user-tie mr-1"></i> 
+                                ${instructorName}
+                            </p>
+                        </div>
+                        <div class="flex gap-1">
+                            <button class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition" title="Edit">
+                                <i class="fas fa-pen text-xs"></i>
+                            </button>
+                            <button class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-4 text-xs">
+                        <span class="flex items-center gap-1 text-slate-500">
+                            <i class="fas fa-user-graduate"></i> 0 students
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                <i class="fas fa-clock mr-1"></i> Pending
+                            </span>
+                        </span>
+                    </div>
+                    <a href="#" class="mt-3 inline-block text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                        <i class="fas fa-arrow-right mr-1"></i> View Students
+                    </a>
+                `;
+                
+                // Remove empty state if exists
+                const emptyState = sectionGrid.querySelector('.flex.flex-col.items-center.justify-center');
+                if (emptyState) {
+                    emptyState.remove();
+                }
+                
+                sectionGrid.appendChild(newSection);
+                
+                // Update section count
+                const currentCount = parseInt(sectionCount.textContent);
+                sectionCount.textContent = currentCount + 1;
+                
+                // Reset form
+                sectionName.value = '';
+                sectionInstructor.value = '';
+                
+                // Show success
+                submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Created!';
+                submitBtn.className = 'w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-emerald-200';
+                
+                setTimeout(function() {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.className = 'w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200';
+                    submitBtn.disabled = false;
+                }, 1500);
+                
+                console.log('Section created successfully!');
+            }, 1000);
+        });
+    });
+</script>

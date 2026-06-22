@@ -1,0 +1,1581 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Edit Program{% endblock %}
+
+{% block content %}
+
+<!-- ==================== RICH TEXT EDITOR + EDIT-PAGE STYLES ==================== -->
+<style>
+    .rich-editor-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        flex-wrap: wrap;
+    }
+    .rich-editor-toolbar button {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 5px;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+    }
+    .rich-editor-toolbar button:hover {
+        background: #e0e7ff;
+        color: #4f46e5;
+    }
+    .rich-editor-toolbar button.active {
+        background: #e0e7ff;
+        color: #4f46e5;
+    }
+    .rich-editor-toolbar .toolbar-sep {
+        width: 1px;
+        height: 18px;
+        background: #e2e8f0;
+        margin: 0 3px;
+    }
+    .rich-editor-content {
+        min-height: 90px;
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 0 0 8px 8px;
+        font-size: 13.5px;
+        color: #334155;
+        outline: none;
+        line-height: 1.6;
+        background: #fff;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .rich-editor-content:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+    .rich-editor-content[placeholder]:empty:before {
+        content: attr(placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+    .peo-item, .plo-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 16px;
+        transition: box-shadow 0.15s;
+    }
+    .peo-item:hover, .plo-item:hover {
+        box-shadow: 0 2px 8px rgba(99,102,241,0.07);
+    }
+    .peo-label-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #4f46e5;
+        background: #e0e7ff;
+        border-radius: 6px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+        margin-bottom: 10px;
+    }
+    .plo-label-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #0369a1;
+        background: #e0f2fe;
+        border-radius: 6px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+        margin-bottom: 10px;
+    }
+    .peo-title-input {
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        padding: 5px 10px;
+        outline: none;
+        width: 100%;
+        background: #fff;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .peo-title-input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.10);
+    }
+    .peo-title-input::placeholder {
+        color: #94a3b8;
+        font-weight: 400;
+    }
+
+    /* Read-only basic detail fields (code & name come from the Dean's assignment) */
+    .locked-field {
+        background: #f1f5f9;
+        color: #64748b;
+        cursor: not-allowed;
+    }
+
+    /* Mission dynamic rows */
+    .mission-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    /* Assessment tool dynamic rows */
+    .assessment-custom-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Mapping table enhancements (PEOs in columns, PLOs in rows) */
+    #mapping-table th, #mapping-table td {
+        white-space: nowrap;
+    }
+    #mapping-table .mapping-col-header {
+        writing-mode: horizontal-tb;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .mapping-checkbox {
+        width: 17px;
+        height: 17px;
+        accent-color: #4f46e5;
+        cursor: pointer;
+    }
+    #peo-empty-state, #plo-empty-state {
+        transition: opacity 0.2s;
+    }
+
+    /* PLO import dropdown */
+    #plo-import-menu {
+        animation: dropdownFade 0.12s ease-out;
+    }
+    @keyframes dropdownFade {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============ EDIT-PAGE SPECIFIC ADDITIONS ============ */
+
+    /* Section wrapper gets a left accent + ring when it has unsaved (dirty) changes */
+    .editable-section {
+        position: relative;
+        transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .editable-section.is-dirty {
+        border-color: #fbbf24;
+        box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.25);
+    }
+
+    /* "Unsaved changes" pill shown on a section header once it's dirty */
+    .dirty-pill {
+        display: none;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #b45309;
+        background: #fef3c7;
+        border: 1px solid #fde68a;
+        border-radius: 999px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+    .editable-section.is-dirty .dirty-pill {
+        display: inline-flex;
+    }
+
+    /* Comment box for "why are you changing this section" */
+    .section-comment-wrap {
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px dashed #e2e8f0;
+    }
+    .section-comment-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+    }
+    .section-comment-textarea {
+        width: 100%;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        color: #334155;
+        resize: none;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .section-comment-textarea:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+    .section-comment-textarea.comment-required {
+        border-color: #f87171;
+    }
+    .section-comment-textarea.comment-required:focus {
+        box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+    }
+    .comment-error-text {
+        display: none;
+        align-items: center;
+        gap: 5px;
+        font-size: 11.5px;
+        color: #dc2626;
+        margin-top: 5px;
+    }
+    .comment-error-text.show {
+        display: flex;
+    }
+
+    /* Locked banner on Basic Details */
+    .locked-banner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #64748b;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+    }
+
+    /* Version history timeline */
+    .version-timeline {
+        position: relative;
+        margin-top: 16px;
+        padding-left: 28px;
+    }
+    .version-timeline::before {
+        content: '';
+        position: absolute;
+        left: 9px;
+        top: 6px;
+        bottom: 6px;
+        width: 2px;
+        background: #e2e8f0;
+    }
+    .version-entry {
+        position: relative;
+        padding-bottom: 22px;
+    }
+    .version-entry:last-child {
+        padding-bottom: 0;
+    }
+    .version-entry::before {
+        content: '';
+        position: absolute;
+        left: -28px;
+        top: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #eef2ff;
+        border: 2px solid #6366f1;
+    }
+    .version-entry.is-current::before {
+        background: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+    .version-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 16px;
+    }
+    .version-tag {
+        font-size: 12px;
+        font-weight: 700;
+        color: #4f46e5;
+        background: #e0e7ff;
+        border-radius: 6px;
+        padding: 2px 9px;
+    }
+    .version-tag.current {
+        color: #ffffff;
+        background: #4f46e5;
+    }
+    .section-chip {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #475569;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        padding: 2px 9px;
+        margin: 2px 3px 0 0;
+    }
+    .version-comment-row {
+        font-size: 12.5px;
+        color: #64748b;
+        margin-top: 3px;
+        padding-left: 2px;
+    }
+    .version-comment-row strong {
+        color: #475569;
+    }
+
+    /* Floating update button */
+    .floating-update-btn {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 14px 22px;
+        background: #4f46e5;
+        color: #fff;
+        border: none;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.45), 0 4px 6px -2px rgba(79, 70, 229, 0.2);
+        cursor: pointer;
+        transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    .floating-update-btn:hover {
+        background: #4338ca;
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px -6px rgba(79, 70, 229, 0.5), 0 4px 8px -2px rgba(79, 70, 229, 0.25);
+    }
+    .floating-update-btn:active {
+        transform: translateY(0);
+    }
+    .floating-update-btn .fab-badge {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        min-width: 19px;
+        height: 19px;
+        border-radius: 999px;
+        background: #fde047;
+        color: #713f12;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 0 4px;
+    }
+    .floating-update-btn.has-changes .fab-badge {
+        display: flex;
+    }
+    @media (max-width: 640px) {
+        .floating-update-btn {
+            bottom: 18px;
+            right: 18px;
+            left: 18px;
+            justify-content: center;
+        }
+    }
+
+    /* Toast for validation feedback */
+    #comment-toast {
+        position: fixed;
+        bottom: 96px;
+        right: 28px;
+        z-index: 50;
+        max-width: 320px;
+        background: #1e293b;
+        color: #fff;
+        font-size: 13px;
+        border-radius: 10px;
+        padding: 12px 16px;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+        display: none;
+        align-items: flex-start;
+        gap: 9px;
+    }
+    #comment-toast.show {
+        display: flex;
+    }
+    @media (max-width: 640px) {
+        #comment-toast {
+            right: 18px;
+            left: 18px;
+            bottom: 86px;
+            max-width: none;
+        }
+    }
+</style>
+
+<div class="flex flex-col lg:flex-row gap-8">
+
+    <!-- ==================== STICKY SIDEBAR NAV ==================== -->
+    <aside class="lg:w-64 flex-shrink-0">
+        <div class="lg:sticky lg:top-6 bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-1">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 pb-2 border-b border-slate-100">Sections</p>
+            <a href="#section-basic" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-info-circle w-4 text-center"></i> Basic Details
+            </a>
+            <a href="#section-mission" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-flag w-4 text-center"></i> Mission & Vision
+                <span class="nav-dirty-dot ml-auto w-2 h-2 rounded-full bg-amber-400 hidden" data-dot="mission"></span>
+            </a>
+            <a href="#section-peos" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-bullseye w-4 text-center"></i> PEOs
+                <span class="nav-dirty-dot ml-auto w-2 h-2 rounded-full bg-amber-400 hidden" data-dot="peos"></span>
+            </a>
+            <a href="#section-plos" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-tasks w-4 text-center"></i> PLOs
+                <span class="nav-dirty-dot ml-auto w-2 h-2 rounded-full bg-amber-400 hidden" data-dot="plos"></span>
+            </a>
+            <a href="#section-mapping" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-link w-4 text-center"></i> PEO-PLO Mapping
+                <span class="nav-dirty-dot ml-auto w-2 h-2 rounded-full bg-amber-400 hidden" data-dot="mapping"></span>
+            </a>
+            <a href="#section-settings" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-cog w-4 text-center"></i> Settings & Tools
+                <span class="nav-dirty-dot ml-auto w-2 h-2 rounded-full bg-amber-400 hidden" data-dot="settings"></span>
+            </a>
+            <a href="#section-version" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition sidebar-link">
+                <i class="fas fa-code-branch w-4 text-center"></i> Versioning
+            </a>
+        </div>
+    </aside>
+
+    <!-- ==================== MAIN FORM ==================== -->
+    <div class="flex-1 space-y-6 pb-24">
+
+        <!-- Form Header -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Edit Program</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">
+                        {{ name }} <span class="text-slate-300">&middot;</span>
+                        <span class="inline-flex items-center gap-1 text-indigo-500 font-medium">
+                            <i class="fas fa-code-branch text-xs"></i> Current version: v{{ current_version }}
+                        </span>
+                    </p>
+                </div>
+                <div class="flex gap-2 mt-3 sm:mt-0">
+                    <a href="{% url 'program_list' %}" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                        <i class="fas fa-times mr-1"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== FORM (wraps all sections) ==================== -->
+        <form id="program-form" method="post" action="{% url 'program_update' program_id=program_id %}" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="program_id" value="{{ program_id }}" />
+            <input type="hidden" id="changed-sections-input" name="changed_sections" value="" />
+
+            <div class="space-y-6">
+            <!-- SECTION CONTENT GOES HERE (basic / mission / peos / plos / mapping / settings / version) -->
+<!-- SECTION 1: Basic Details (LOCKED — no comment box, not trackable) -->
+<section id="section-basic" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+    <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+        <i class="fas fa-info-circle text-indigo-500"></i> Basic Details
+    </h3>
+    <div class="locked-banner mt-3">
+        <i class="fas fa-lock"></i>
+        Program code and name are assigned by the Dean and can't be changed from this page.
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Program Code</label>
+            <input type="text" value="{{ code }}" disabled
+                   class="locked-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+            <input type="hidden" name="code" value="{{ code }}" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Program Name</label>
+            <input type="text" value="{{ name }}" disabled
+                   class="locked-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+            <input type="hidden" name="name" value="{{ name }}" />
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 2: Mission & Vision (TRACKABLE) -->
+<section id="section-mission" class="editable-section bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20" data-section="mission" data-section-label="Mission & Vision">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+        <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <i class="fas fa-flag text-indigo-500"></i> Mission & Vision
+        </h3>
+        <span class="dirty-pill"><i class="fas fa-circle text-[7px]"></i> Unsaved changes</span>
+    </div>
+
+    <!-- Institution Vision: single field -->
+    <div class="mt-4">
+        <label class="block text-sm font-medium text-slate-700 mb-1">Institution Vision</label>
+        <textarea rows="3" name="inst_vision" data-track="mission" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="What the institution aspires to become...">{{ detail.inst_vision }}</textarea>
+    </div>
+
+    <!-- Institution Mission: dynamic, any number -->
+    <div class="mt-5">
+        <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-medium text-slate-700">Institution Mission</label>
+            <button type="button" id="add-inst-mission-btn"
+                class="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-xs font-medium transition">
+                <i class="fas fa-plus text-xs"></i> Add Mission
+            </button>
+        </div>
+        <p class="text-xs text-slate-400 mb-2">An institution can have any number of mission statements.</p>
+        <div id="inst-mission-list" class="space-y-2">
+            <!-- mission rows injected by JS -->
+        </div>
+    </div>
+
+    <hr class="my-6 border-slate-100" />
+
+    <!-- Program Vision: single field -->
+    <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Program Vision <span class="text-red-500">*</span></label>
+        <textarea rows="3" name="program_vision" data-track="mission" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="What this program aspires to become...">{{ detail.program_vision }}</textarea>
+    </div>
+
+    <!-- Program Mission: dynamic, any number -->
+    <div class="mt-5">
+        <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-medium text-slate-700">Program Mission <span class="text-red-500">*</span></label>
+            <button type="button" id="add-mission-btn"
+                class="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-xs font-medium transition">
+                <i class="fas fa-plus text-xs"></i> Add Mission
+            </button>
+        </div>
+        <p class="text-xs text-slate-400 mb-2">A program can have any number of mission statements.</p>
+        <div id="mission-list" class="space-y-2">
+            <!-- mission rows injected by JS -->
+        </div>
+    </div>
+
+    <!-- Comment box -->
+    <div class="section-comment-wrap">
+        <div class="section-comment-label">
+            <label class="text-xs font-semibold text-slate-600">
+                <i class="fas fa-comment-dots text-slate-400 mr-1"></i> Reason for change
+                <span class="text-red-500 comment-asterisk" data-comment-asterisk="mission" style="display:none;">*</span>
+            </label>
+            <span class="text-[11px] text-slate-400">Required only if you change this section</span>
+        </div>
+        <textarea rows="2" name="comment_mission" id="comment-mission" data-comment-for="mission"
+            class="section-comment-textarea"
+            placeholder="e.g., Revised program mission to reflect new research focus areas."></textarea>
+        <div class="comment-error-text" id="comment-error-mission">
+            <i class="fas fa-exclamation-circle"></i> You changed this section — please explain why before updating.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SECTION 3: PEOs (TRACKABLE) ==================== -->
+<section id="section-peos" class="editable-section bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20" data-section="peos" data-section-label="PEOs">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+        <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <i class="fas fa-bullseye text-indigo-500"></i> Program Educational Objectives (PEOs)
+        </h3>
+        <div class="flex items-center gap-2">
+            <span class="dirty-pill"><i class="fas fa-circle text-[7px]"></i> Unsaved changes</span>
+            <button type="button" id="add-peo-btn"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-sm font-medium transition">
+                <i class="fas fa-plus text-xs"></i> Add PEO
+            </button>
+        </div>
+    </div>
+    <p class="text-xs text-slate-400 mt-1 mb-4">PEOs describe what graduates are expected to achieve 3–5 years after graduation.</p>
+
+    <div id="peo-list" class="space-y-4">
+        <!-- PEO items injected here by JS, seeded from program data -->
+    </div>
+
+    <!-- Empty state -->
+    <div id="peo-empty-state" class="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm" style="display:none;">
+        <i class="fas fa-bullseye text-2xl block mb-2 text-slate-300"></i>
+        No PEOs added yet. Click <span class="font-medium text-indigo-400">"Add PEO"</span> to define program educational objectives.
+    </div>
+
+    <!-- Comment box -->
+    <div class="section-comment-wrap">
+        <div class="section-comment-label">
+            <label class="text-xs font-semibold text-slate-600">
+                <i class="fas fa-comment-dots text-slate-400 mr-1"></i> Reason for change
+                <span class="text-red-500 comment-asterisk" data-comment-asterisk="peos" style="display:none;">*</span>
+            </label>
+            <span class="text-[11px] text-slate-400">Required only if you change this section</span>
+        </div>
+        <textarea rows="2" name="comment_peos" id="comment-peos" data-comment-for="peos"
+            class="section-comment-textarea"
+            placeholder="e.g., Reworded the Technical Excellence PEO for clarity."></textarea>
+        <div class="comment-error-text" id="comment-error-peos">
+            <i class="fas fa-exclamation-circle"></i> You changed this section — please explain why before updating.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SECTION 4: PLOs (TRACKABLE) ==================== -->
+<section id="section-plos" class="editable-section bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20" data-section="plos" data-section-label="PLOs">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+        <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <i class="fas fa-tasks text-indigo-500"></i> Program Learning Outcomes (PLOs)
+        </h3>
+        <div class="flex items-center gap-2">
+            <span class="dirty-pill"><i class="fas fa-circle text-[7px]"></i> Unsaved changes</span>
+            <!-- Import PLOs dropdown -->
+            <div class="relative" id="plo-import-dropdown">
+                <button type="button" id="plo-import-toggle"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-600 hover:text-sky-800 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-file-import text-xs"></i> Import PLOs <i class="fas fa-chevron-down text-[10px] ml-0.5"></i>
+                </button>
+                <div id="plo-import-menu"
+                     data-abet-url="{% url 'plo_preset_import' source='abet' %}"
+                     data-baete-url="{% url 'plo_preset_import' source='baete' %}"
+                     class="hidden absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                    <button type="button" data-source="abet" class="plo-import-option w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center gap-2">
+                        <i class="fas fa-certificate text-xs text-slate-400"></i> Import from ABET
+                    </button>
+                    <button type="button" data-source="baete" class="plo-import-option w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center gap-2 border-t border-slate-100">
+                        <i class="fas fa-certificate text-xs text-slate-400"></i> Import from BAETE
+                    </button>
+                </div>
+            </div>
+            <button type="button" id="add-plo-btn"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-sm font-medium transition">
+                <i class="fas fa-plus text-xs"></i> Add PLO
+            </button>
+        </div>
+    </div>
+    <p class="text-xs text-slate-400 mt-1 mb-4">PLOs describe what students will know and be able to do upon graduation.</p>
+
+    <div id="plo-list" class="space-y-4">
+        <!-- PLO items injected here by JS, seeded from program data -->
+    </div>
+
+    <!-- Empty state -->
+    <div id="plo-empty-state" class="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm" style="display:none;">
+        <i class="fas fa-tasks text-2xl block mb-2 text-slate-300"></i>
+        No PLOs added yet. Click <span class="font-medium text-indigo-400">"Add PLO"</span> or import a preset above.
+    </div>
+
+    <!-- Comment box -->
+    <div class="section-comment-wrap">
+        <div class="section-comment-label">
+            <label class="text-xs font-semibold text-slate-600">
+                <i class="fas fa-comment-dots text-slate-400 mr-1"></i> Reason for change
+                <span class="text-red-500 comment-asterisk" data-comment-asterisk="plos" style="display:none;">*</span>
+            </label>
+            <span class="text-[11px] text-slate-400">Required only if you change this section</span>
+        </div>
+        <textarea rows="2" name="comment_plos" id="comment-plos" data-comment-for="plos"
+            class="section-comment-textarea"
+            placeholder="e.g., Updated wording on Modern Tool Usage to match latest ABET descriptor."></textarea>
+        <div class="comment-error-text" id="comment-error-plos">
+            <i class="fas fa-exclamation-circle"></i> You changed this section — please explain why before updating.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SECTION 5: PEO-PLO Mapping (TRACKABLE) ==================== -->
+<section id="section-mapping" class="editable-section bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20" data-section="mapping" data-section-label="PEO-PLO Mapping">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+        <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <i class="fas fa-link text-indigo-500"></i> PEO-PLO Mapping
+        </h3>
+        <span class="dirty-pill"><i class="fas fa-circle text-[7px]"></i> Unsaved changes</span>
+    </div>
+    <p class="text-xs text-slate-400 mt-1 mb-4">Check the box where a PLO contributes to a PEO. Each PEO is a column; each PLO is a row.</p>
+
+    <div class="overflow-x-auto">
+        <table id="mapping-table" class="w-full text-sm border border-slate-200 rounded-lg">
+            <thead>
+                <tr id="mapping-header-row" class="bg-slate-50 border-b border-slate-200">
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 min-w-[110px]">PLO \ PEO</th>
+                    <!-- PEO columns injected by JS -->
+                </tr>
+            </thead>
+            <tbody id="mapping-body">
+                <!-- PLO rows injected by JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mapping empty state -->
+    <div id="mapping-empty-state" class="mt-2 hidden">
+        <div class="px-4 py-6 text-center text-slate-400 text-sm border border-slate-200 rounded-lg">
+            <i class="fas fa-info-circle mr-1"></i> Add PEOs and PLOs first to enable mapping.
+        </div>
+    </div>
+
+    <!-- Comment box -->
+    <div class="section-comment-wrap">
+        <div class="section-comment-label">
+            <label class="text-xs font-semibold text-slate-600">
+                <i class="fas fa-comment-dots text-slate-400 mr-1"></i> Reason for change
+                <span class="text-red-500 comment-asterisk" data-comment-asterisk="mapping" style="display:none;">*</span>
+            </label>
+            <span class="text-[11px] text-slate-400">Required only if you change this section</span>
+        </div>
+        <textarea rows="2" name="comment_mapping" id="comment-mapping" data-comment-for="mapping"
+            class="section-comment-textarea"
+            placeholder="e.g., Re-mapped PLO 4 and 6 after PLO wording update."></textarea>
+        <div class="comment-error-text" id="comment-error-mapping">
+            <i class="fas fa-exclamation-circle"></i> You changed this section — please explain why before updating.
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 6: Settings & Tools (TRACKABLE) -->
+<section id="section-settings" class="editable-section bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20" data-section="settings" data-section-label="Settings & Assessment Tools">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+        <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <i class="fas fa-cog text-indigo-500"></i> Settings & Assessment Tools
+        </h3>
+        <span class="dirty-pill"><i class="fas fa-circle text-[7px]"></i> Unsaved changes</span>
+    </div>
+    <div class="mt-4">
+        <label class="block text-sm font-medium text-slate-700 mb-2">Assessment Tools</label>
+        <div id="assessment-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {% for tool in standard_assessment_tools %}
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="assessment_tools" value="{{ tool }}" data-track="settings"
+                       class="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                       {% if tool in detail.assessment_tools %}checked{% endif %} />
+                <span class="text-sm text-slate-600">{{ tool }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Custom assessment tools injected here by JS, seeded from program data -->
+        <div id="custom-assessment-list" class="space-y-2 mt-3"></div>
+
+        <button type="button" id="add-assessment-btn"
+            class="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 rounded-lg text-sm font-medium transition">
+            <i class="fas fa-plus text-xs"></i> Add Assessment Tool
+        </button>
+    </div>
+
+    <!-- Comment box -->
+    <div class="section-comment-wrap">
+        <div class="section-comment-label">
+            <label class="text-xs font-semibold text-slate-600">
+                <i class="fas fa-comment-dots text-slate-400 mr-1"></i> Reason for change
+                <span class="text-red-500 comment-asterisk" data-comment-asterisk="settings" style="display:none;">*</span>
+            </label>
+            <span class="text-[11px] text-slate-400">Required only if you change this section</span>
+        </div>
+        <textarea rows="2" name="comment_settings" id="comment-settings" data-comment-for="settings"
+            class="section-comment-textarea"
+            placeholder="e.g., Added Capstone Defense as a recurring assessment tool."></textarea>
+        <div class="comment-error-text" id="comment-error-settings">
+            <i class="fas fa-exclamation-circle"></i> You changed this section — please explain why before updating.
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 7: Versioning (READ-ONLY HISTORY — not trackable, no comment box) -->
+<section id="section-version" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 scroll-mt-20">
+    <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+        <i class="fas fa-code-branch text-indigo-500"></i> Versioning
+    </h3>
+    <div class="mt-3 flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-lg text-sm text-indigo-700">
+        <i class="fas fa-info-circle mt-0.5"></i>
+        <span>
+            Clicking <strong>Update Program</strong> saves your changes as a new version
+            (<strong>v{{ next_version }}</strong>) rather than overwriting v{{ current_version }}.
+            This keeps past versions intact so cohorts can stay linked to the curriculum they
+            actually graduated under — e.g. 150 students may have completed under v2 while v3 is now active.
+        </span>
+    </div>
+
+    {% if detail.version_history %}
+    <div class="version-timeline">
+        {% for v in detail.version_history %}
+        <div class="version-entry {% if forloop.first %}is-current{% endif %}">
+            <div class="version-card">
+                <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="version-tag {% if forloop.first %}current{% endif %}">v{{ v.version }}</span>
+                        {% if forloop.first %}
+                        <span class="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide">Current</span>
+                        {% endif %}
+                    </div>
+                    <span class="text-xs text-slate-400">{{ v.date }} &middot; {{ v.editor }}</span>
+                </div>
+                <div class="mb-2">
+                    {% for s in v.sections_changed %}
+                    <span class="section-chip">{{ s }}</span>
+                    {% endfor %}
+                </div>
+                {% for section_name, comment_text in v.comments.items %}
+                <div class="version-comment-row">
+                    <strong>{{ section_name }}:</strong> {{ comment_text }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="mt-4 border-2 border-dashed border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">
+        <i class="fas fa-code-branch text-2xl block mb-2 text-slate-300"></i>
+        No version history yet. This will be <strong>Version 1</strong> once you save.
+    </div>
+    {% endif %}
+</section>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== FLOATING UPDATE BUTTON ==================== -->
+<button type="button" id="floating-update-btn" class="floating-update-btn" title="Update Program">
+    <i class="fas fa-code-branch"></i>
+    <span>Update Program</span>
+    <span class="fab-badge" id="fab-badge-count">0</span>
+</button>
+
+<!-- ==================== VALIDATION TOAST ==================== -->
+<div id="comment-toast">
+    <i class="fas fa-exclamation-circle mt-0.5"></i>
+    <span id="comment-toast-text">Please add a comment explaining your change.</span>
+</div>
+
+<!-- Program data, safely serialized for JS (avoids manually escaping Python strings into JS) -->
+{{ detail|json_script:"program-data" }}
+
+<!-- ==================== PEO / PLO / MISSION / ASSESSMENT / DIRTY-TRACKING JAVASCRIPT ==================== -->
+<script>
+(function () {
+
+    // ── Seed data from Django (program's current saved state) ──────────────────
+    // Pulled from the json_script tag rendered just above this <script> block.
+    // Keeps Python-rendered JSON properly escaped instead of inlined raw into JS.
+    const SERVER_PROGRAM_DATA = JSON.parse(document.getElementById('program-data').textContent);
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    const peos = [];
+    const plos = [];
+    const mappingState = {}; // mappingState[peoId][ploId] = true/false
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    function indexToLetter(n) {
+        let result = '';
+        n += 1;
+        while (n > 0) {
+            const rem = (n - 1) % 26;
+            result = String.fromCharCode(97 + rem) + result;
+            n = Math.floor((n - 1) / 26);
+        }
+        return result;
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str || '';
+        return div.innerHTML;
+    }
+
+    // ── Rich-text toolbar HTML (shared factory) ────────────────────────────────
+    function buildToolbar(editorId) {
+        return `
+        <div class="rich-editor-toolbar" data-editor="${editorId}">
+            <button type="button" title="Bold" data-cmd="bold"><i class="fas fa-bold"></i></button>
+            <button type="button" title="Italic" data-cmd="italic"><i class="fas fa-italic"></i></button>
+            <button type="button" title="Underline" data-cmd="underline"><i class="fas fa-underline"></i></button>
+            <div class="toolbar-sep"></div>
+            <button type="button" title="Superscript" data-cmd="superscript"><i class="fas fa-superscript"></i></button>
+            <button type="button" title="Subscript" data-cmd="subscript"><i class="fas fa-subscript"></i></button>
+            <div class="toolbar-sep"></div>
+            <button type="button" title="Ordered list" data-cmd="insertOrderedList"><i class="fas fa-list-ol"></i></button>
+            <button type="button" title="Unordered list" data-cmd="insertUnorderedList"><i class="fas fa-list-ul"></i></button>
+            <div class="toolbar-sep"></div>
+            <button type="button" title="Remove formatting" data-cmd="removeFormat"><i class="fas fa-remove-format"></i></button>
+        </div>`;
+    }
+
+    function buildEditor(editorId, placeholder) {
+        return `<div
+            id="${editorId}"
+            class="rich-editor-content"
+            contenteditable="true"
+            placeholder="${placeholder}"
+            spellcheck="true"
+        ></div>`;
+    }
+
+    function wireToolbar(toolbarEl) {
+        toolbarEl.addEventListener('mousedown', function (e) {
+            const btn = e.target.closest('[data-cmd]');
+            if (!btn) return;
+            e.preventDefault();
+            const cmd = btn.dataset.cmd;
+            const editorId = toolbarEl.dataset.editor;
+            const editorEl = document.getElementById(editorId);
+            if (editorEl) editorEl.focus();
+            document.execCommand(cmd, false, null);
+            updateToolbarState(toolbarEl);
+        });
+    }
+
+    function updateToolbarState(toolbarEl) {
+        ['bold', 'italic', 'underline', 'superscript', 'subscript'].forEach(cmd => {
+            const btn = toolbarEl.querySelector(`[data-cmd="${cmd}"]`);
+            if (!btn) return;
+            if (document.queryCommandState(cmd)) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    document.addEventListener('selectionchange', function () {
+        document.querySelectorAll('.rich-editor-toolbar').forEach(function (tb) {
+            updateToolbarState(tb);
+        });
+    });
+
+    // ── PEO ────────────────────────────────────────────────────────────────────
+
+    const peoList   = document.getElementById('peo-list');
+    const peoEmpty  = document.getElementById('peo-empty-state');
+    const addPeoBtn = document.getElementById('add-peo-btn');
+
+    let peoIdCounter = 0;
+
+    function renderPeoLabels() {
+        peos.forEach(function (peo, i) {
+            const badge = document.querySelector(`[data-peo-badge="${peo.id}"]`);
+            if (badge) badge.textContent = 'PEO ' + (i + 1);
+        });
+    }
+
+    function addPeo(titleVal, contentHtml) {
+        const id       = 'peo-' + (++peoIdCounter);
+        const editorId = 'editor-' + id;
+        const index    = peos.length + 1;
+
+        const wrapper  = document.createElement('div');
+        wrapper.className = 'peo-item';
+        wrapper.dataset.peoId = id;
+        wrapper.innerHTML = `
+            <div class="flex items-start justify-between gap-3 mb-2">
+                <span class="peo-label-badge" data-peo-badge="${id}">PEO ${index}</span>
+                <button type="button" class="peo-delete-btn text-red-400 hover:text-red-600 text-sm mt-0.5 transition" data-target="${id}" title="Remove PEO">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+            <div class="mb-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1">Title <span class="text-slate-300 font-normal">(e.g., Professionalism)</span></label>
+                <input type="text"
+                    class="peo-title-input"
+                    placeholder="e.g., Professionalism"
+                    value="${escapeHtml(titleVal || '')}"
+                    data-peo-title="${id}"
+                    data-track="peos"
+                />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Description</label>
+                ${buildToolbar(editorId)}
+                ${buildEditor(editorId, 'Describe what graduates are expected to achieve 3–5 years after graduation…')}
+            </div>
+        `;
+
+        peoList.appendChild(wrapper);
+
+        const toolbar = wrapper.querySelector('.rich-editor-toolbar');
+        wireToolbar(toolbar);
+
+        const editorEl = document.getElementById(editorId);
+        if (contentHtml) editorEl.innerHTML = contentHtml;
+        editorEl.dataset.track = 'peos';
+        editorEl.addEventListener('input', function () { markDirty('peos'); });
+
+        wrapper.querySelector(`[data-peo-title="${id}"]`).addEventListener('input', function () { markDirty('peos'); });
+
+        wrapper.querySelector('.peo-delete-btn').addEventListener('click', function () {
+            removePeo(id);
+            markDirty('peos');
+        });
+
+        peos.push({ id, editorEl });
+        mappingState[id] = {};
+        plos.forEach(function (plo) {
+            mappingState[id][plo.id] = false;
+        });
+
+        togglePeoEmpty();
+        rebuildMappingTable();
+        return id;
+    }
+
+    function removePeo(id) {
+        const idx = peos.findIndex(p => p.id === id);
+        if (idx === -1) return;
+        peos.splice(idx, 1);
+        delete mappingState[id];
+        const el = peoList.querySelector(`[data-peo-id="${id}"]`);
+        if (el) el.remove();
+        renderPeoLabels();
+        togglePeoEmpty();
+        rebuildMappingTable();
+    }
+
+    function togglePeoEmpty() {
+        peoEmpty.style.display = peos.length === 0 ? 'block' : 'none';
+    }
+
+    addPeoBtn.addEventListener('click', function () {
+        addPeo();
+        markDirty('peos');
+    });
+
+    // ── PLO ────────────────────────────────────────────────────────────────────
+
+    const ploList   = document.getElementById('plo-list');
+    const ploEmpty  = document.getElementById('plo-empty-state');
+    const addPloBtn = document.getElementById('add-plo-btn');
+
+    let ploIdCounter = 0;
+
+    function renderPloLabels() {
+        plos.forEach(function (plo, i) {
+            const badge = document.querySelector(`[data-plo-badge="${plo.id}"]`);
+            if (badge) badge.textContent = indexToLetter(i) + '.';
+        });
+    }
+
+    function addPlo(titleVal, contentHtml) {
+        const id       = 'plo-' + (++ploIdCounter);
+        const editorId = 'editor-' + id;
+        const letter   = indexToLetter(plos.length);
+
+        const wrapper  = document.createElement('div');
+        wrapper.className = 'plo-item';
+        wrapper.dataset.ploId = id;
+        wrapper.innerHTML = `
+            <div class="flex items-start justify-between gap-3 mb-2">
+                <span class="plo-label-badge" data-plo-badge="${id}">${letter}.</span>
+                <button type="button" class="plo-delete-btn text-red-400 hover:text-red-600 text-sm mt-0.5 transition" data-target="${id}" title="Remove PLO">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+            <div class="mb-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1">Title <span class="text-slate-300 font-normal">(e.g., Engineering knowledge)</span></label>
+                <input type="text"
+                    class="peo-title-input"
+                    placeholder="e.g., Engineering knowledge"
+                    value="${escapeHtml(titleVal || '')}"
+                    data-plo-title="${id}"
+                    data-track="plos"
+                />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Description</label>
+                ${buildToolbar(editorId)}
+                ${buildEditor(editorId, 'Describe what students will know and be able to do upon graduation…')}
+            </div>
+        `;
+
+        ploList.appendChild(wrapper);
+
+        const toolbar = wrapper.querySelector('.rich-editor-toolbar');
+        wireToolbar(toolbar);
+
+        const editorEl = document.getElementById(editorId);
+        if (contentHtml) editorEl.innerHTML = contentHtml;
+        editorEl.dataset.track = 'plos';
+        editorEl.addEventListener('input', function () { markDirty('plos'); });
+
+        wrapper.querySelector(`[data-plo-title="${id}"]`).addEventListener('input', function () { markDirty('plos'); });
+
+        wrapper.querySelector('.plo-delete-btn').addEventListener('click', function () {
+            removePlo(id);
+            markDirty('plos');
+        });
+
+        plos.push({ id, editorEl });
+        peos.forEach(function (peo) {
+            if (!mappingState[peo.id]) mappingState[peo.id] = {};
+            mappingState[peo.id][id] = false;
+        });
+
+        togglePloEmpty();
+        rebuildMappingTable();
+        return id;
+    }
+
+    function removePlo(id) {
+        const idx = plos.findIndex(p => p.id === id);
+        if (idx === -1) return;
+        plos.splice(idx, 1);
+        peos.forEach(function (peo) {
+            if (mappingState[peo.id]) delete mappingState[peo.id][id];
+        });
+        const el = ploList.querySelector(`[data-plo-id="${id}"]`);
+        if (el) el.remove();
+        renderPloLabels();
+        togglePloEmpty();
+        rebuildMappingTable();
+    }
+
+    function togglePloEmpty() {
+        ploEmpty.style.display = plos.length === 0 ? 'block' : 'none';
+    }
+
+    addPloBtn.addEventListener('click', function () {
+        addPlo();
+        markDirty('plos');
+    });
+
+    // ── PLO Import Dropdown (ABET / BAETE presets) ─────────────────────────────
+
+    const ploImportToggle = document.getElementById('plo-import-toggle');
+    const ploImportMenu    = document.getElementById('plo-import-menu');
+
+    ploImportToggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        ploImportMenu.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!ploImportMenu.contains(e.target) && e.target !== ploImportToggle) {
+            ploImportMenu.classList.add('hidden');
+        }
+    });
+
+    ploImportMenu.querySelectorAll('.plo-import-option').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const source = btn.dataset.source;
+            const url = source === 'abet' ? ploImportMenu.dataset.abetUrl : ploImportMenu.dataset.baeteUrl;
+            ploImportMenu.classList.add('hidden');
+
+            const originalLabel = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs text-slate-400"></i> Importing…';
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    (data.plos || []).forEach(function (item) {
+                        addPlo(item.title, item.description);
+                    });
+                    markDirty('plos');
+                })
+                .catch(function () {
+                    alert('Could not import PLOs right now. Please try again.');
+                })
+                .finally(function () {
+                    btn.innerHTML = originalLabel;
+                });
+        });
+    });
+
+    // ── Mapping Table (PEOs = columns, PLOs = rows) ─────────────────────────────
+
+    const mappingTable      = document.getElementById('mapping-table');
+    const mappingHeaderRow  = document.getElementById('mapping-header-row');
+    const mappingBody       = document.getElementById('mapping-body');
+    const mappingEmptyState = document.getElementById('mapping-empty-state');
+
+    function getPeoLabel(id) {
+        const idx = peos.findIndex(p => p.id === id);
+        return idx >= 0 ? 'PEO ' + (idx + 1) : '';
+    }
+
+    function getPloLabel(id) {
+        const idx = plos.findIndex(p => p.id === id);
+        return idx >= 0 ? indexToLetter(idx) + '.' : '';
+    }
+
+    function getPeoTitle(id) {
+        const el = document.querySelector(`[data-peo-title="${id}"]`);
+        return el ? (el.value || '') : '';
+    }
+
+    function rebuildMappingTable() {
+        const hasPeos = peos.length > 0;
+        const hasPlos = plos.length > 0;
+
+        if (!hasPeos || !hasPlos) {
+            mappingTable.style.display = 'none';
+            mappingEmptyState.classList.remove('hidden');
+            return;
+        }
+
+        mappingTable.style.display = '';
+        mappingEmptyState.classList.add('hidden');
+
+        while (mappingHeaderRow.children.length > 1) {
+            mappingHeaderRow.removeChild(mappingHeaderRow.lastChild);
+        }
+        peos.forEach(function (peo) {
+            const th = document.createElement('th');
+            th.className = 'px-3 py-2 text-center text-xs font-semibold text-slate-500 mapping-col-header';
+            th.title = getPeoTitle(peo.id);
+            th.textContent = getPeoLabel(peo.id);
+            mappingHeaderRow.appendChild(th);
+        });
+
+        mappingBody.innerHTML = '';
+        plos.forEach(function (plo) {
+            const tr = document.createElement('tr');
+            tr.className = 'border-b border-slate-100 hover:bg-slate-50/50';
+
+            const tdLabel = document.createElement('td');
+            tdLabel.className = 'px-4 py-2.5 font-semibold text-slate-700 text-xs whitespace-nowrap';
+            tdLabel.textContent = getPloLabel(plo.id);
+            tr.appendChild(tdLabel);
+
+            peos.forEach(function (peo) {
+                if (!mappingState[peo.id]) mappingState[peo.id] = {};
+                const td = document.createElement('td');
+                td.className = 'px-3 py-2.5 text-center';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.className = 'mapping-checkbox';
+                cb.checked = !!mappingState[peo.id][plo.id];
+                cb.title = getPeoLabel(peo.id) + ' ↔ PLO ' + getPloLabel(plo.id);
+                cb.addEventListener('change', function () {
+                    if (!mappingState[peo.id]) mappingState[peo.id] = {};
+                    mappingState[peo.id][plo.id] = cb.checked;
+                    markDirty('mapping');
+                });
+                td.appendChild(cb);
+                tr.appendChild(td);
+            });
+
+            mappingBody.appendChild(tr);
+        });
+    }
+
+    // ── Mission (dynamic rows) — shared by Institution & Program ───────────────
+
+    function createMissionList(listEl, addBtnEl, inputName, placeholder, trackKey) {
+        let idCounter = 0;
+
+        function addMission(value) {
+            const id = inputName.replace(/[^a-zA-Z0-9]/g, '') + '-' + (++idCounter);
+            const row = document.createElement('div');
+            row.className = 'mission-item';
+            row.dataset.missionId = id;
+            row.innerHTML = `
+                <textarea rows="2" name="${inputName}" data-track="${trackKey}"
+                    class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
+                    placeholder="${placeholder}">${escapeHtml(value || '')}</textarea>
+                <button type="button" class="mission-delete-btn text-red-400 hover:text-red-600 text-sm mt-2 transition" title="Remove this mission statement">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            `;
+            listEl.appendChild(row);
+            row.querySelector('textarea').addEventListener('input', function () { markDirty(trackKey); });
+            row.querySelector('.mission-delete-btn').addEventListener('click', function () {
+                row.remove();
+                markDirty(trackKey);
+            });
+        }
+
+        addBtnEl.addEventListener('click', function () {
+            addMission();
+            markDirty(trackKey);
+        });
+
+        return addMission;
+    }
+
+    const addInstMission = createMissionList(
+        document.getElementById('inst-mission-list'),
+        document.getElementById('add-inst-mission-btn'),
+        'inst_mission[]',
+        'State one mission of the institution…',
+        'mission'
+    );
+
+    const addMission = createMissionList(
+        document.getElementById('mission-list'),
+        document.getElementById('add-mission-btn'),
+        'program_mission[]',
+        'State one mission of the program…',
+        'mission'
+    );
+
+    // ── Assessment Tools (custom additions) ─────────────────────────────────────
+
+    const customAssessmentList = document.getElementById('custom-assessment-list');
+    const addAssessmentBtn     = document.getElementById('add-assessment-btn');
+    let assessmentIdCounter    = 0;
+
+    function addCustomAssessment(labelVal) {
+        const id = 'assessment-' + (++assessmentIdCounter);
+        const row = document.createElement('div');
+        row.className = 'assessment-custom-item';
+        row.dataset.assessmentId = id;
+        row.innerHTML = `
+            <input type="checkbox" name="assessment_tools" checked data-track="settings" class="w-4 h-4 text-indigo-600 rounded border-slate-300" />
+            <input type="text" name="assessment_tools_custom_label" data-track="settings" value="${escapeHtml(labelVal || '')}" placeholder="Enter assessment tool name"
+                class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button type="button" class="assessment-delete-btn text-red-400 hover:text-red-600 text-sm transition" title="Remove">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        `;
+        customAssessmentList.appendChild(row);
+        row.querySelector('input[type="text"]').addEventListener('input', function () { markDirty('settings'); });
+        row.querySelector('.assessment-delete-btn').addEventListener('click', function () {
+            row.remove();
+            markDirty('settings');
+        });
+    }
+
+    addAssessmentBtn.addEventListener('click', function () {
+        addCustomAssessment();
+        markDirty('settings');
+    });
+
+    document.querySelectorAll('#assessment-list input[type="checkbox"]').forEach(function (cb) {
+        cb.addEventListener('change', function () { markDirty('settings'); });
+    });
+
+    // ── Dirty tracking + comment requirement ────────────────────────────────────
+
+    const dirtySections = new Set();
+    const TRACKED_SECTIONS = ['mission', 'peos', 'plos', 'mapping', 'settings'];
+
+    function markDirty(sectionKey) {
+        if (!TRACKED_SECTIONS.includes(sectionKey)) return;
+        dirtySections.add(sectionKey);
+        applyDirtyUI(sectionKey);
+        updateFloatingBadge();
+    }
+
+    function clearDirty(sectionKey) {
+        dirtySections.delete(sectionKey);
+        applyDirtyUI(sectionKey);
+        updateFloatingBadge();
+    }
+
+    function applyDirtyUI(sectionKey) {
+        const sectionEl = document.querySelector(`.editable-section[data-section="${sectionKey}"]`);
+        const dot = document.querySelector(`.nav-dirty-dot[data-dot="${sectionKey}"]`);
+        const asterisk = document.querySelector(`.comment-asterisk[data-comment-asterisk="${sectionKey}"]`);
+        const isDirty = dirtySections.has(sectionKey);
+
+        if (sectionEl) sectionEl.classList.toggle('is-dirty', isDirty);
+        if (dot) dot.classList.toggle('hidden', !isDirty);
+        if (asterisk) asterisk.style.display = isDirty ? 'inline' : 'none';
+
+        if (!isDirty) {
+            // Section reverted to original / never touched — clear any stale error.
+            const errEl = document.getElementById('comment-error-' + sectionKey);
+            const textareaEl = document.getElementById('comment-' + sectionKey);
+            if (errEl) errEl.classList.remove('show');
+            if (textareaEl) textareaEl.classList.remove('comment-required');
+        }
+    }
+
+    function updateFloatingBadge() {
+        const btn = document.getElementById('floating-update-btn');
+        const badge = document.getElementById('fab-badge-count');
+        const count = dirtySections.size;
+        badge.textContent = count;
+        btn.classList.toggle('has-changes', count > 0);
+    }
+
+    // Re-evaluate dirty state for sections whose change could also mean "reverted back to original"
+    // by comparing live values against the original snapshot. Wired on every relevant input above
+    // via markDirty(); a full revert-to-original check runs at submit time (see validateAndSubmit).
+
+    // ── Original snapshot (for revert / submit-time comparison) ────────────────
+    // Captured once, right after initial seeding below, so we can tell whether a
+    // "dirty" section actually still differs from what's saved.
+
+    let originalSnapshot = null;
+
+    function snapshotState() {
+        return {
+            mission: {
+                inst_vision: document.querySelector('[name="inst_vision"]').value.trim(),
+                inst_missions: Array.from(document.querySelectorAll('[name="inst_mission[]"]')).map(t => t.value.trim()),
+                program_vision: document.querySelector('[name="program_vision"]').value.trim(),
+                program_missions: Array.from(document.querySelectorAll('[name="program_mission[]"]')).map(t => t.value.trim()),
+            },
+            peos: peos.map(function (p) {
+                return {
+                    title: (document.querySelector(`[data-peo-title="${p.id}"]`) || {}).value || '',
+                    description: p.editorEl.innerHTML.trim(),
+                };
+            }),
+            plos: plos.map(function (p) {
+                return {
+                    title: (document.querySelector(`[data-plo-title="${p.id}"]`) || {}).value || '',
+                    description: p.editorEl.innerHTML.trim(),
+                };
+            }),
+            mapping: peos.map(function (peo) {
+                return plos.map(function (plo) {
+                    return !!(mappingState[peo.id] && mappingState[peo.id][plo.id]);
+                });
+            }),
+            settings: {
+                standard: Array.from(document.querySelectorAll('#assessment-list input[type="checkbox"]:checked')).map(cb => cb.value),
+                custom: Array.from(document.querySelectorAll('#custom-assessment-list .assessment-custom-item')).map(function (row) {
+                    return {
+                        checked: row.querySelector('input[type="checkbox"]').checked,
+                        label: row.querySelector('input[type="text"]').value.trim(),
+                    };
+                }),
+            },
+        };
+    }
+
+    function deepEqual(a, b) {
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    function recomputeAllDirty() {
+        if (!originalSnapshot) return;
+        const current = snapshotState();
+        TRACKED_SECTIONS.forEach(function (key) {
+            if (deepEqual(current[key], originalSnapshot[key])) {
+                clearDirty(key);
+            } else {
+                dirtySections.add(key);
+                applyDirtyUI(key);
+            }
+        });
+        updateFloatingBadge();
+    }
+
+    // ── Seed PEOs / PLOs / Missions / Assessment Tools from program data ───────
+
+    function seedFromServerData(data) {
+        (data.inst_missions || []).forEach(function (m) { addInstMission(m); });
+        if ((data.inst_missions || []).length === 0) addInstMission('');
+
+        (data.program_missions || []).forEach(function (m) { addMission(m); });
+        if ((data.program_missions || []).length === 0) addMission('');
+
+        const peoIds = (data.peos || []).map(function (p) { return addPeo(p.title, p.description); });
+        const ploIds = (data.plos || []).map(function (p) { return addPlo(p.title, p.description); });
+
+        // Apply mapping matrix (positional: mapping[peoIndex][ploIndex])
+        (data.mapping || []).forEach(function (row, peoIdx) {
+            const peoId = peoIds[peoIdx];
+            if (!peoId) return;
+            row.forEach(function (val, ploIdx) {
+                const ploId = ploIds[ploIdx];
+                if (!ploId) return;
+                if (!mappingState[peoId]) mappingState[peoId] = {};
+                mappingState[peoId][ploId] = !!val;
+            });
+        });
+        rebuildMappingTable();
+
+        (data.assessment_tools_custom || []).forEach(function (label) { addCustomAssessment(label); });
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    togglePeoEmpty();
+    togglePloEmpty();
+    mappingTable.style.display = 'none';
+    mappingEmptyState.classList.remove('hidden');
+
+    seedFromServerData(SERVER_PROGRAM_DATA);
+    originalSnapshot = snapshotState();
+
+    // Bind input listeners that need the snapshot to exist (revert detection on every change)
+    document.getElementById('program-form').addEventListener('input', function () {
+        recomputeAllDirty();
+    });
+    document.getElementById('program-form').addEventListener('change', function () {
+        recomputeAllDirty();
+    });
+
+    // ── Comment requirement validation + floating submit ───────────────────────
+
+    const toast = document.getElementById('comment-toast');
+    const toastText = document.getElementById('comment-toast-text');
+    let toastTimer = null;
+
+    function showToast(message) {
+        toastText.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 4000);
+    }
+
+    function validateComments() {
+        let firstInvalidSection = null;
+        TRACKED_SECTIONS.forEach(function (key) {
+            const textarea = document.getElementById('comment-' + key);
+            const errEl = document.getElementById('comment-error-' + key);
+            const isDirty = dirtySections.has(key);
+            const isBlank = !textarea.value.trim();
+
+            if (isDirty && isBlank) {
+                textarea.classList.add('comment-required');
+                errEl.classList.add('show');
+                if (!firstInvalidSection) firstInvalidSection = key;
+            } else {
+                textarea.classList.remove('comment-required');
+                errEl.classList.remove('show');
+            }
+        });
+        return firstInvalidSection;
+    }
+
+    // Clear a section's error as soon as the controller starts typing a comment
+    TRACKED_SECTIONS.forEach(function (key) {
+        const textarea = document.getElementById('comment-' + key);
+        textarea.addEventListener('input', function () {
+            if (textarea.value.trim()) {
+                textarea.classList.remove('comment-required');
+                document.getElementById('comment-error-' + key).classList.remove('show');
+            }
+        });
+    });
+
+    document.getElementById('floating-update-btn').addEventListener('click', function () {
+        recomputeAllDirty();
+        const invalidSection = validateComments();
+
+        if (invalidSection) {
+            const sectionEl = document.querySelector(`.editable-section[data-section="${invalidSection}"]`);
+            if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            showToast('Please add a comment explaining your change before updating.');
+            return;
+        }
+
+        if (dirtySections.size === 0) {
+            showToast('No changes detected — nothing to update.');
+            return;
+        }
+
+        document.getElementById('changed-sections-input').value = Array.from(dirtySections).join(',');
+        document.getElementById('program-form').submit();
+    });
+
+})();
+
+</script>
+
+{% endblock %}

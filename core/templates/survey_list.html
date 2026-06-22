@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Survey Management</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #f1f5f9;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+
+        .top-nav {
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.85);
+        }
+        .stat-card {
+            transition: all 0.25s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.07);
+        }
+        .survey-card {
+            transition: all 0.25s ease;
+        }
+        .survey-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.08);
+            border-color: #818cf8;
+        }
+        /* Don't lift the "Create New" dashed card like a regular card */
+        .survey-card.create-card:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        .badge-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        @media (max-width: 640px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ===== Delete Confirm Modal ===== */
+        #delete-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        #delete-modal.open { display: flex; }
+        #delete-modal .modal-box {
+            background: #fff;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+            animation: modal-in 0.2s cubic-bezier(.4,0,.2,1);
+        }
+        @keyframes modal-in {
+            from { opacity: 0; transform: translateY(14px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0)   scale(1); }
+        }
+
+        /* Survey card hidden when filtered out */
+        .survey-card.filtered-out {
+            display: none;
+        }
+        /* Fade in when shown */
+        .survey-card {
+            animation: card-in 0.2s ease;
+        }
+        @keyframes card-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== TOP NAVIGATION ==================== -->
+<header class="top-nav border-b border-slate-200/80 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm shadow-indigo-200">
+                    OBE
+                </div>
+                <span class="text-lg font-semibold text-slate-800 tracking-tight">OBE<span class="text-indigo-600">Sys</span></span>
+                <span class="hidden sm:inline-block text-xs text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full font-medium">Surveys</span>
+            </div>
+
+            <!-- Right Side -->
+            <div class="flex items-center gap-3 sm:gap-5">
+                <!-- Fixed: "Back to Surveys" makes no sense here; changed to "Dashboard" -->
+                <a href="{% url 'instructor_dashboard' %}" class="hidden md:flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Dashboard</span>
+                </a>
+                <button class="relative p-1.5 rounded-full hover:bg-slate-100 transition">
+                    <i class="fas fa-bell text-slate-500 text-lg"></i>
+                    <span class="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-medium">3</span>
+                </button>
+                <div class="flex items-center gap-2.5 pl-2.5 border-l border-slate-200">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-semibold text-sm shadow-sm shadow-indigo-200">
+                        AK
+                    </div>
+                    <div class="hidden sm:block">
+                        <p class="text-sm font-medium text-slate-700 leading-tight">Dr. Ahmed Khan</p>
+                        <p class="text-xs text-slate-400 leading-tight">Instructor</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- ==================== MAIN CONTENT ==================== -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- ===== PAGE HEADER ===== -->
+    <div class="bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-700 rounded-2xl p-6 md:p-8 text-white mb-8 shadow-lg shadow-indigo-200/40">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Survey Management</h1>
+                <p class="text-indigo-100 text-sm mt-0.5">Create, manage, and analyze surveys for feedback collection</p>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <span class="inline-flex items-center gap-2 px-3.5 py-2 bg-white/15 backdrop-blur-sm rounded-xl text-sm border border-white/10">
+                    <i class="fas fa-poll text-indigo-200"></i>
+                    <span class="font-medium" id="header-total-count">{{ total_surveys }}</span>
+                    <span class="text-indigo-200/70">Total Surveys</span>
+                </span>
+                <a href="{% url 'survey_builder' offering_id=1 %}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-xl text-sm font-medium transition border border-white/10">
+                    <i class="fas fa-plus"></i> New Survey
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== STATS CARDS ===== -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 stats-grid">
+        <div class="stat-card bg-white p-5 rounded-2xl shadow-sm border border-slate-200/70">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Total</span>
+                    <p class="text-2xl font-bold text-slate-800 mt-1">{{ total_surveys }}</p>
+                    <span class="text-xs text-slate-400">All surveys</span>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm shadow-indigo-100">
+                    <i class="fas fa-poll text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card bg-white p-5 rounded-2xl shadow-sm border border-slate-200/70">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Active</span>
+                    <p class="text-2xl font-bold text-emerald-600 mt-1">{{ active_surveys }}</p>
+                    <span class="text-xs text-emerald-600"><i class="fas fa-arrow-up mr-1"></i> Collecting responses</span>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm shadow-emerald-100">
+                    <i class="fas fa-play-circle text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card bg-white p-5 rounded-2xl shadow-sm border border-slate-200/70">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Responses</span>
+                    <p class="text-2xl font-bold text-slate-800 mt-1">{{ total_responses }}</p>
+                    <span class="text-xs text-slate-400">Total received</span>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm shadow-blue-100">
+                    <i class="fas fa-users text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card bg-white p-5 rounded-2xl shadow-sm border border-slate-200/70">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Response Rate</span>
+                    <p class="text-2xl font-bold text-amber-600 mt-1">{{ avg_response_rate }}%</p>
+                    <span class="text-xs text-amber-600"><i class="fas fa-arrow-up mr-1"></i> +5% from last week</span>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-sm shadow-amber-100">
+                    <i class="fas fa-chart-line text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FILTERS ===== -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/70 p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
+        <!-- Search -->
+        <div class="flex items-center gap-3 flex-1 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-indigo-400 transition">
+            <i class="fas fa-search text-slate-400 text-sm"></i>
+            <input id="search-input" type="text" placeholder="Search surveys by name or description..."
+                   class="w-full border-0 focus:ring-0 text-sm bg-transparent outline-none placeholder-slate-400" />
+            <button id="clear-search" class="hidden text-slate-300 hover:text-slate-500 transition">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <!-- Status Filter -->
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+            <span class="text-slate-500 font-medium">Status:</span>
+            <div class="flex gap-1 bg-slate-100 rounded-lg p-1">
+                <button class="filter-btn active-filter px-3 py-1 rounded-md bg-white shadow-sm text-slate-700 text-xs font-medium transition" data-filter="all">All</button>
+                <button class="filter-btn px-3 py-1 rounded-md text-slate-500 hover:bg-white/70 text-xs font-medium transition" data-filter="active">Active</button>
+                <button class="filter-btn px-3 py-1 rounded-md text-slate-500 hover:bg-white/70 text-xs font-medium transition" data-filter="draft">Draft</button>
+                <button class="filter-btn px-3 py-1 rounded-md text-slate-500 hover:bg-white/70 text-xs font-medium transition" data-filter="closed">Closed</button>
+            </div>
+            <span class="text-slate-300">|</span>
+            <!-- Type Filter -->
+            <select id="type-filter" class="bg-slate-100 border-0 rounded-lg px-3 py-1.5 text-xs text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="all">All Types</option>
+                <option value="Student Feedback">Student Feedback</option>
+                <option value="Course Evaluation">Course Evaluation</option>
+                <option value="Instructor Feedback">Instructor Feedback</option>
+                <option value="Program Survey">Program Survey</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- No results message (hidden by default) -->
+    <div id="no-results" class="hidden bg-white rounded-2xl border border-slate-200/70 p-10 text-center mb-6">
+        <i class="fas fa-search text-3xl text-slate-300 mb-3 block"></i>
+        <p class="text-sm font-medium text-slate-600">No surveys match your search</p>
+        <p class="text-xs text-slate-400 mt-1">Try adjusting your filters or search term</p>
+        <button id="clear-filters-btn" class="mt-3 px-4 py-2 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition font-medium border border-indigo-200">
+            Clear Filters
+        </button>
+    </div>
+
+    <!-- ===== SURVEY GRID ===== -->
+    <div id="survey-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        {% for survey in surveys %}
+        <div class="survey-card border border-slate-200 rounded-2xl p-5 bg-white"
+             data-status="{{ survey.status }}"
+             data-type="{{ survey.type }}"
+             data-title="{{ survey.title }}"
+             data-desc="{{ survey.description }}">
+
+            <div class="flex items-start justify-between">
+                <div>
+                    <!-- ===== STATUS BADGE ===== -->
+                    {% if survey.status == 'active' %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full badge-pulse"></span>
+                            Active
+                        </span>
+                    {% elif survey.status == 'draft' %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            <i class="fas fa-clock text-amber-500"></i>
+                            Draft
+                        </span>
+                    {% elif survey.status == 'closed' %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                            <i class="fas fa-check-circle text-slate-400"></i>
+                            Closed
+                        </span>
+                    {% endif %}
+                    <h3 class="font-semibold text-slate-800 mt-2 text-base">{{ survey.title }}</h3>
+                </div>
+
+                <!-- ===== HEADER ACTIONS (Edit / View icon changes by status) ===== -->
+                <div class="flex gap-1">
+                    {% if survey.status == 'closed' %}
+                        <a href="{% url 'survey_results' pk=survey.id %}"
+                           class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="View Results">
+                            <i class="fas fa-eye text-sm"></i>
+                        </a>
+                    {% else %}
+                        <a href="{% url 'survey_builder' offering_id=survey.id %}"
+                           class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit">
+                            <i class="fas fa-pen text-sm"></i>
+                        </a>
+                    {% endif %}
+                    <button class="btn-delete p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+                        <i class="fas fa-trash-alt text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <p class="text-xs text-slate-500 mt-2 line-clamp-2">{{ survey.description }}</p>
+
+            <!-- Meta info -->
+            <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
+                <span><i class="fas fa-users mr-1.5 text-slate-400"></i> {{ survey.responses }} Responses</span>
+                {% if survey.status == 'draft' %}
+                    <span><i class="fas fa-calendar-alt mr-1.5 text-slate-400"></i> Not published</span>
+                    <span><i class="fas fa-clock mr-1.5 text-slate-400"></i> In progress</span>
+                {% elif survey.status == 'closed' %}
+                    <span><i class="fas fa-calendar-alt mr-1.5 text-slate-400"></i> Closed: {{ survey.due_date }}</span>
+                    <span><i class="fas fa-chart-line mr-1.5 text-slate-400"></i> {{ survey.response_rate }}% response</span>
+                {% else %}
+                    <span><i class="fas fa-calendar-alt mr-1.5 text-slate-400"></i> Due: {{ survey.due_date }}</span>
+                    {% if survey.days_left is not None %}
+                        <span><i class="fas fa-clock mr-1.5 text-slate-400"></i> {{ survey.days_left }} days left</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <!-- Response rate bar -->
+            <div class="mt-3">
+                <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+                    <span>Response Rate</span>
+                    {% if survey.status == 'draft' %}
+                        <span class="font-semibold text-slate-400">Not started</span>
+                    {% elif survey.response_rate >= 75 %}
+                        <span class="font-semibold text-emerald-600">{{ survey.response_rate }}%</span>
+                    {% else %}
+                        <span class="font-semibold text-slate-700">{{ survey.response_rate }}%</span>
+                    {% endif %}
+                </div>
+                <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    {% if survey.status == 'draft' %}
+                        <div class="h-full bg-slate-300 rounded-full" style="width: 0%"></div>
+                    {% else %}
+                        <div class="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
+                             style="width: {{ survey.response_rate }}%"></div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Footer: type badge + action buttons -->
+            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs text-slate-400">Type:</span>
+                    <span class="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{{ survey.type }}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    {% if survey.status == 'active' %}
+                        <a href="{% url 'survey_results' pk=survey.id %}"
+                           class="px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition font-medium">
+                            <i class="fas fa-eye mr-1"></i> Results
+                        </a>
+                        <a href="#" class="px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium">
+                            <i class="fas fa-share-alt mr-1"></i> Share
+                        </a>
+                    {% elif survey.status == 'draft' %}
+                        <a href="{% url 'survey_builder' offering_id=survey.id %}"
+                           class="px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition font-medium">
+                            <i class="fas fa-pen mr-1"></i> Build
+                        </a>
+                        <a href="#" class="px-3 py-1.5 text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg transition font-medium">
+                            <i class="fas fa-paper-plane mr-1"></i> Publish
+                        </a>
+                    {% elif survey.status == 'closed' %}
+                        <a href="{% url 'survey_results' pk=survey.id %}"
+                           class="px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition font-medium">
+                            <i class="fas fa-file-alt mr-1"></i> Report
+                        </a>
+                        <a href="#" class="px-3 py-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg transition font-medium">
+                            <i class="fas fa-arrow-right mr-1"></i> to QI
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- ===== CREATE NEW CARD — always last ===== -->
+        <div class="survey-card create-card border-2 border-dashed border-indigo-300 rounded-2xl p-5 bg-indigo-50/30 hover:bg-indigo-50/50 transition cursor-pointer flex flex-col items-center justify-center min-h-[200px]"
+             data-status="create" data-type="create">
+            <i class="fas fa-plus-circle text-4xl text-indigo-400 mb-3"></i>
+            <h4 class="font-semibold text-slate-700">Create New Survey</h4>
+            <p class="text-xs text-slate-400 text-center mt-1">Design a new survey with<br />custom questions and sections</p>
+            <a href="{% url 'survey_builder' offering_id=1 %}"
+               class="mt-3 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition shadow-sm shadow-indigo-200 inline-block">
+                <i class="fas fa-plus mr-1.5"></i> Get Started
+            </a>
+        </div>
+
+    </div>
+
+    <!-- ===== QUICK ACTIONS ===== -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <a href="{% url 'survey_builder' offering_id=1 %}" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/70 hover:border-indigo-300 hover:shadow-md transition cursor-pointer">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <i class="fas fa-plus"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-700">New Survey</p>
+                    <p class="text-xs text-slate-400">Create from scratch</p>
+                </div>
+            </div>
+        </a>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/70 hover:border-indigo-300 hover:shadow-md transition cursor-pointer">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <i class="fas fa-file-import"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-700">Import Survey</p>
+                    <p class="text-xs text-slate-400">From template or file</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/70 hover:border-indigo-300 hover:shadow-md transition cursor-pointer">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <i class="fas fa-file-export"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-700">Export Results</p>
+                    <p class="text-xs text-slate-400">Download all responses</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/70 hover:border-indigo-300 hover:shadow-md transition cursor-pointer">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-700">Generate Report</p>
+                    <p class="text-xs text-slate-400">For QI process (Module 5)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="mt-8 pt-4 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-400">
+        <p>© 2025 OBE Management System · Survey Management</p>
+        <div class="flex items-center gap-4 mt-2 sm:mt-0">
+            <a href="#" class="hover:text-slate-600 transition">Help</a>
+            <a href="#" class="hover:text-slate-600 transition">Privacy</a>
+            <a href="#" class="hover:text-slate-600 transition">Support</a>
+            <a href="{% url 'instructor_dashboard' %}" class="text-indigo-500 hover:text-indigo-700 transition font-medium">Back to Dashboard</a>
+        </div>
+    </footer>
+
+</main>
+
+<!-- ==================== DELETE CONFIRM MODAL ==================== -->
+<div id="delete-modal">
+    <div class="modal-box p-6">
+        <div class="flex items-center gap-4 mb-5">
+            <div class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-trash-alt text-xl"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-slate-800">Delete Survey</h3>
+                <p class="text-xs text-slate-400 mt-0.5">This action cannot be undone</p>
+            </div>
+        </div>
+        <p class="text-sm text-slate-600 mb-1">You are about to permanently delete:</p>
+        <p id="delete-survey-name" class="text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-5"></p>
+        <p class="text-xs text-slate-400 mb-5">All responses and data associated with this survey will be lost.</p>
+        <div class="flex items-center gap-3 justify-end">
+            <button id="cancel-delete" class="px-5 py-2.5 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-medium transition">
+                Cancel
+            </button>
+            <button id="confirm-delete" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition shadow-sm shadow-red-200">
+                <i class="fas fa-trash-alt mr-1.5"></i> Delete Survey
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ============================================================
+    // FILTER + SEARCH
+    // ============================================================
+
+    const searchInput    = document.getElementById('search-input');
+    const clearSearchBtn = document.getElementById('clear-search');
+    const typeFilter     = document.getElementById('type-filter');
+    const filterBtns     = document.querySelectorAll('.filter-btn');
+    const noResults      = document.getElementById('no-results');
+    const clearFiltersBtn = document.getElementById('clear-filters-btn');
+
+    let activeStatus = 'all';
+    let activeType   = 'all';
+    let searchQuery  = '';
+
+    function applyFilters() {
+        // All real survey cards (not the create card)
+        const cards = document.querySelectorAll('#survey-grid .survey-card:not(.create-card)');
+        let visible = 0;
+
+        cards.forEach(card => {
+            const status = card.dataset.status || '';
+            const type   = card.dataset.type   || '';
+            const title  = (card.dataset.title  || '').toLowerCase();
+            const desc   = (card.dataset.desc   || '').toLowerCase();
+            const q      = searchQuery.toLowerCase();
+
+            const statusMatch = activeStatus === 'all' || status === activeStatus;
+            const typeMatch   = activeType   === 'all' || type   === activeType;
+            const searchMatch = q === '' || title.includes(q) || desc.includes(q);
+
+            if (statusMatch && typeMatch && searchMatch) {
+                card.classList.remove('filtered-out');
+                visible++;
+            } else {
+                card.classList.add('filtered-out');
+            }
+        });
+
+        // The create card: hide it only when a specific filter/search is active
+        const createCard = document.querySelector('.create-card');
+        if (createCard) {
+            const hide = activeStatus !== 'all' || activeType !== 'all' || searchQuery !== '';
+            createCard.classList.toggle('filtered-out', hide);
+        }
+
+        noResults.classList.toggle('hidden', visible > 0);
+    }
+
+    // Status filter buttons
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+            filterBtns.forEach(b => {
+                b.classList.remove('active-filter', 'bg-white', 'shadow-sm', 'text-slate-700');
+                b.classList.add('text-slate-500');
+            });
+            this.classList.add('active-filter', 'bg-white', 'shadow-sm', 'text-slate-700');
+            this.classList.remove('text-slate-500');
+            activeStatus = this.dataset.filter;
+            applyFilters();
+        });
+    });
+
+    // Type dropdown
+    typeFilter.addEventListener('change', function () {
+        activeType = this.value;
+        applyFilters();
+    });
+
+    // Search
+    searchInput.addEventListener('input', function () {
+        searchQuery = this.value.trim();
+        clearSearchBtn.classList.toggle('hidden', searchQuery === '');
+        applyFilters();
+    });
+
+    clearSearchBtn.addEventListener('click', function () {
+        searchInput.value = '';
+        searchQuery = '';
+        this.classList.add('hidden');
+        applyFilters();
+        searchInput.focus();
+    });
+
+    // Clear all filters
+    clearFiltersBtn.addEventListener('click', function () {
+        searchInput.value = '';
+        searchQuery = '';
+        clearSearchBtn.classList.add('hidden');
+        typeFilter.value = 'all';
+        activeType = 'all';
+        activeStatus = 'all';
+        filterBtns.forEach(b => {
+            b.classList.remove('active-filter', 'bg-white', 'shadow-sm', 'text-slate-700');
+            b.classList.add('text-slate-500');
+        });
+        // Re-activate "All" button
+        const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
+        if (allBtn) {
+            allBtn.classList.add('active-filter', 'bg-white', 'shadow-sm', 'text-slate-700');
+            allBtn.classList.remove('text-slate-500');
+        }
+        applyFilters();
+    });
+
+    // ============================================================
+    // DELETE MODAL
+    // ============================================================
+
+    const deleteModal   = document.getElementById('delete-modal');
+    const deleteNameEl  = document.getElementById('delete-survey-name');
+    const cancelDelete  = document.getElementById('cancel-delete');
+    const confirmDelete = document.getElementById('confirm-delete');
+
+    let cardToDelete = null;
+
+    function openDeleteModal(card) {
+        cardToDelete = card;
+        const name = card.querySelector('h3')?.textContent?.trim() || 'this survey';
+        deleteNameEl.textContent = name;
+        deleteModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDeleteModal() {
+        deleteModal.classList.remove('open');
+        document.body.style.overflow = '';
+        cardToDelete = null;
+    }
+
+    // Wire delete buttons via delegation
+    document.getElementById('survey-grid').addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-delete');
+        if (btn) {
+            const card = btn.closest('.survey-card');
+            if (card) openDeleteModal(card);
+        }
+    });
+
+    cancelDelete.addEventListener('click', closeDeleteModal);
+
+    // Click outside modal to close
+    deleteModal.addEventListener('click', function (e) {
+        if (e.target === deleteModal) closeDeleteModal();
+    });
+
+    // ESC to close
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeDeleteModal();
+    });
+
+    confirmDelete.addEventListener('click', function () {
+        if (!cardToDelete) return;
+
+        // Visual feedback
+        confirmDelete.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Deleting...';
+        confirmDelete.disabled  = true;
+
+        setTimeout(() => {
+            // Fade out the card
+            cardToDelete.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+            cardToDelete.style.opacity    = '0';
+            cardToDelete.style.transform  = 'scale(0.96)';
+            setTimeout(() => {
+                cardToDelete.remove();
+                closeDeleteModal();
+                confirmDelete.innerHTML = '<i class="fas fa-trash-alt mr-1.5"></i> Delete Survey';
+                confirmDelete.disabled  = false;
+                applyFilters(); // re-check empty state
+            }, 220);
+        }, 600);
+    });
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    applyFilters();
+});
+</script>
+
+</body>
+</html>

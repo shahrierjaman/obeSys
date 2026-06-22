@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}My Programs{% endblock %}
+
+{% block content %}
+
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-b border-slate-100">
+        <div>
+            <h2 class="text-lg font-semibold text-slate-800">Assigned Programs</h2>
+            <p class="text-sm text-slate-500 mt-0.5">Programs assigned to you by the Dean. New programs show a <span class="font-medium text-indigo-600">Manage</span> action; once set up, use <span class="font-medium text-slate-600">Edit</span> for further changes.</p>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <th class="px-6 py-3">Program Code</th>
+                    <th class="px-6 py-3">Program Name</th>
+                    <th class="px-6 py-3 text-center">PEOs</th>
+                    <th class="px-6 py-3 text-center">PLOs</th>
+                    <th class="px-6 py-3">Version</th>
+                    <th class="px-6 py-3">Status</th>
+                    <th class="px-6 py-3 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for program in programs %}
+                <tr class="hover:bg-slate-50/60 transition">
+                    <td class="px-6 py-4 font-semibold text-slate-700 whitespace-nowrap">{{ program.code }}</td>
+                    <td class="px-6 py-4 text-slate-600">{{ program.name }}</td>
+                    <td class="px-6 py-4 text-center">
+                        {% if program.version == 0 %}
+                        <span class="text-slate-300 text-xs">—</span>
+                        {% else %}
+                        <span class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">{{ program.peo_count|default:0 }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        {% if program.version == 0 %}
+                        <span class="text-slate-300 text-xs">—</span>
+                        {% else %}
+                        <span class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-600">{{ program.plo_count|default:0 }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-slate-500 whitespace-nowrap">v{{ program.version }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if program.version == 0 %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600 border border-indigo-200">
+                            <i class="fas fa-star mr-1"></i> New
+                        </span>
+                        {% elif program.status == 'Active' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></span> Active
+                        </span>
+                        {% elif program.status == 'Draft' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            <span class="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5"></span> Draft
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                            <i class="fas fa-archive mr-1"></i> Archived
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        {% if program.version == 0 %}
+                        <!-- Not yet managed (v0): only the Manage action is available -->
+                        <a href="{% url 'program_create' %}?id={{ program.id }}&code={{ program.code|urlencode }}&name={{ program.name|urlencode }}"
+                           title="Manage Program"
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition text-xs font-medium">
+                            <i class="fas fa-sliders-h text-xs"></i> Manage
+                        </a>
+                        {% else %}
+                        <!-- Already managed at least once (v1+): only the Edit action is available -->
+                        <a href="{% url 'program_edit' program.id %}"
+                           title="Edit Program"
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition text-xs font-medium">
+                            <i class="fas fa-pen text-xs"></i> Edit
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-6 py-12 text-center text-slate-400 text-sm">
+                        <i class="fas fa-graduation-cap text-2xl block mb-2 text-slate-300"></i>
+                        No programs have been assigned to you yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
