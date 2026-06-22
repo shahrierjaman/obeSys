@@ -81,7 +81,7 @@ These steps will get a copy of the project running locally for development.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/obe_software.git
+git clone https://github.com/shahrierjaman/obe_software.git
 cd obe_software
 ```
 
