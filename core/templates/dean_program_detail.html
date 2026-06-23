@@ -1,0 +1,653 @@
+{% extends 'base_dean.html' %}
+{% load static %}
+
+{% block page_title %}Program Details{% endblock %}
+{% block page_heading %}Program Details{% endblock %}
+
+{% block content %}
+
+<style>
+    .readonly-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 16px;
+    }
+    .readonly-label-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #4f46e5;
+        background: #e0e7ff;
+        border-radius: 6px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+        margin-bottom: 8px;
+    }
+    .readonly-label-badge.plo {
+        color: #0369a1;
+        background: #e0f2fe;
+    }
+    .readonly-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 4px;
+    }
+    .readonly-desc {
+        font-size: 13px;
+        color: #475569;
+        line-height: 1.6;
+    }
+    .tool-chip {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        padding: 4px 12px;
+        margin: 3px 4px 0 0;
+    }
+    #mapping-table-view th, #mapping-table-view td {
+        white-space: nowrap;
+        text-align: center;
+    }
+    #mapping-table-view th:first-child, #mapping-table-view td:first-child {
+        text-align: left;
+        white-space: normal;
+    }
+    .mapping-yes {
+        color: #16a34a;
+    }
+    .mapping-no {
+        color: #cbd5e1;
+    }
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+    .status-active { background: #d1fae5; color: #047857; }
+    .status-draft { background: #e0e7ff; color: #4338ca; }
+    .status-archived { background: #f1f5f9; color: #64748b; }
+    .status-new { background: #fef3c7; color: #b45309; }
+
+    /* Version timeline */
+    .version-timeline {
+        position: relative;
+        margin-top: 16px;
+        padding-left: 28px;
+    }
+    .version-timeline::before {
+        content: '';
+        position: absolute;
+        left: 9px;
+        top: 6px;
+        bottom: 6px;
+        width: 2px;
+        background: #e2e8f0;
+    }
+    .version-entry { position: relative; padding-bottom: 14px; }
+    .version-entry:last-child { padding-bottom: 0; }
+    .version-entry::before {
+        content: '';
+        position: absolute;
+        left: -28px;
+        top: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #eef2ff;
+        border: 2px solid #6366f1;
+        z-index: 1;
+    }
+    .version-entry.is-current::before {
+        background: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+    .version-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .version-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 13px 16px;
+        cursor: pointer;
+        flex-wrap: wrap;
+    }
+    .version-card-header:hover {
+        background: #f1f5f9;
+    }
+    .version-tag {
+        font-size: 12px;
+        font-weight: 700;
+        color: #4f46e5;
+        background: #e0e7ff;
+        border-radius: 6px;
+        padding: 2px 9px;
+    }
+    .version-tag.current {
+        color: #ffffff;
+        background: #4f46e5;
+    }
+    .section-chip {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #475569;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        padding: 2px 9px;
+        margin: 2px 3px 0 0;
+    }
+    .version-card-body {
+        display: none;
+        border-top: 1px solid #e2e8f0;
+        padding: 16px;
+        background: #fff;
+    }
+    .version-card.expanded .version-card-body {
+        display: block;
+    }
+    .version-card.expanded .chevron-icon {
+        transform: rotate(180deg);
+    }
+    .chevron-icon {
+        transition: transform 0.15s;
+        color: #94a3b8;
+    }
+    .version-comment-row {
+        font-size: 12.5px;
+        color: #64748b;
+        margin-top: 3px;
+        padding-left: 2px;
+    }
+    .version-comment-row strong {
+        color: #475569;
+    }
+    .snapshot-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #4f46e5;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        padding: 6px 12px;
+        margin-top: 12px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .snapshot-toggle-btn:hover {
+        background: #e0e7ff;
+    }
+    .snapshot-panel {
+        display: none;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px dashed #e2e8f0;
+    }
+    .snapshot-panel.shown {
+        display: block;
+    }
+    .tab-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748b;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn.active {
+        color: #4f46e5;
+        border-color: #4f46e5;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+</style>
+
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h2 class="text-xl font-bold text-slate-800">{{ program.name }}</h2>
+                    <span class="status-badge status-{{ program.status|lower }}">{{ program.status }}</span>
+                </div>
+                <p class="text-sm text-slate-500 mt-1">
+                    <span class="font-medium text-slate-600">{{ program.code }}</span>
+                    {% if program.version > 0 %}
+                    <span class="text-slate-300">&middot;</span>
+                    <span class="inline-flex items-center gap-1 text-indigo-500 font-medium">
+                        <i class="fas fa-code-branch text-xs"></i> Current version: v{{ program.version }}
+                    </span>
+                    {% endif %}
+                    <span class="text-slate-300">&middot;</span> Last updated {{ program.last_updated }}
+                </p>
+            </div>
+            <a href="{% url 'dean_program_list' %}" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                <i class="fas fa-arrow-left mr-1"></i> Back to All Programs
+            </a>
+        </div>
+
+        <!-- Controller card -->
+        <div class="mt-5 flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 font-bold flex items-center justify-center flex-shrink-0">
+                {{ controller.name|slice:":1"|default:"?" }}
+            </div>
+            {% if controller %}
+            <div>
+                <p class="text-sm font-semibold text-slate-700">{{ controller.name }}</p>
+                <p class="text-xs text-slate-500">{{ controller.email }} &middot; {{ controller.department }}</p>
+            </div>
+            <span class="ml-auto text-xs font-medium text-slate-400 uppercase tracking-wide">Program Controller</span>
+            {% else %}
+            <p class="text-sm text-slate-400 italic">No controller assigned</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if is_unconfigured %}
+    <!-- Not yet configured -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-10 text-center">
+        <i class="fas fa-hourglass-half text-3xl text-amber-400 block mb-3"></i>
+        <h3 class="text-base font-semibold text-slate-700">Not Yet Configured</h3>
+        <p class="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+            This program has been assigned to {{ controller.name|default:"a controller" }} but they haven't
+            opened it to configure mission, PEOs, PLOs, or assessment tools yet. There is no version history to show.
+        </p>
+    </div>
+    {% else %}
+
+    <!-- Tabs: Current Snapshot / Version History -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+        <div class="flex items-center gap-1 px-6 border-b border-slate-200">
+            <div class="tab-btn active" data-tab="current">
+                <i class="fas fa-eye mr-1.5"></i> Current Snapshot
+            </div>
+            <div class="tab-btn" data-tab="history">
+                <i class="fas fa-code-branch mr-1.5"></i> Version History
+                <span class="ml-1 text-[10px] bg-slate-100 text-slate-500 rounded-full px-1.5 py-0.5">{{ versions|length }}</span>
+            </div>
+        </div>
+
+        <!-- ============ TAB: CURRENT SNAPSHOT ============ -->
+        <div class="tab-panel active p-6 space-y-8" data-tab-panel="current">
+<!-- Mission & Vision -->
+<div>
+    <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
+        <i class="fas fa-flag text-indigo-500"></i> Mission & Vision
+    </h4>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="readonly-card">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Institution Vision</p>
+            <p class="readonly-desc">{{ current_snapshot.inst_vision|default:"—" }}</p>
+        </div>
+        <div class="readonly-card">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Program Vision</p>
+            <p class="readonly-desc">{{ current_snapshot.program_vision|default:"—" }}</p>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+        <div class="readonly-card">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Institution Mission</p>
+            <ul class="space-y-1.5">
+                {% for m in current_snapshot.inst_missions %}
+                <li class="readonly-desc flex gap-2"><i class="fas fa-circle text-[5px] text-indigo-400 mt-2"></i><span>{{ m }}</span></li>
+                {% empty %}
+                <li class="text-xs text-slate-400 italic">No mission statements added.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="readonly-card">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Program Mission</p>
+            <ul class="space-y-1.5">
+                {% for m in current_snapshot.program_missions %}
+                <li class="readonly-desc flex gap-2"><i class="fas fa-circle text-[5px] text-indigo-400 mt-2"></i><span>{{ m }}</span></li>
+                {% empty %}
+                <li class="text-xs text-slate-400 italic">No mission statements added.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- PEOs -->
+<div>
+    <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
+        <i class="fas fa-bullseye text-indigo-500"></i> Program Educational Objectives (PEOs)
+    </h4>
+    <div class="space-y-3">
+        {% for peo in current_snapshot.peos %}
+        <div class="readonly-card">
+            <span class="readonly-label-badge">PEO {{ forloop.counter }}</span>
+            <p class="readonly-title">{{ peo.title|default:"Untitled" }}</p>
+            <p class="readonly-desc">{{ peo.description }}</p>
+        </div>
+        {% empty %}
+        <div class="border-2 border-dashed border-slate-200 rounded-lg p-5 text-center text-slate-400 text-sm">No PEOs defined yet.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- PLOs -->
+<div>
+    <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
+        <i class="fas fa-tasks text-indigo-500"></i> Program Learning Outcomes (PLOs)
+    </h4>
+    <div class="space-y-3">
+        {% for plo in current_snapshot.plos %}
+        <div class="readonly-card">
+            <span class="readonly-label-badge plo">{{ forloop.counter|stringformat:"s" }}.</span>
+            <p class="readonly-title">{{ plo.title|default:"Untitled" }}</p>
+            <p class="readonly-desc">{{ plo.description }}</p>
+        </div>
+        {% empty %}
+        <div class="border-2 border-dashed border-slate-200 rounded-lg p-5 text-center text-slate-400 text-sm">No PLOs defined yet.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- PEO-PLO Mapping -->
+<div>
+    <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
+        <i class="fas fa-link text-indigo-500"></i> PEO-PLO Mapping
+    </h4>
+    {% if current_snapshot.peos and current_snapshot.plos %}
+    <div class="overflow-x-auto border border-slate-200 rounded-lg">
+        <table id="mapping-table-view" class="w-full text-sm">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200">
+                    <th class="px-4 py-2 text-xs font-semibold text-slate-500 min-w-[110px]">PLO \ PEO</th>
+                    {% for peo in current_snapshot.peos %}
+                    <th class="px-3 py-2 text-xs font-semibold text-slate-500">PEO {{ forloop.counter }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for plo_row in current_snapshot.mapping_rows %}
+                <tr>
+                    <td class="px-4 py-2.5 font-semibold text-slate-700 text-xs">{{ forloop.counter }}. {{ plo_row.plo_title }}</td>
+                    {% for checked in plo_row.cells %}
+                    <td class="px-3 py-2.5">
+                        {% if checked %}
+                        <i class="fas fa-check-circle mapping-yes"></i>
+                        {% else %}
+                        <i class="fas fa-circle mapping-no" style="font-size:6px;"></i>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="border-2 border-dashed border-slate-200 rounded-lg p-5 text-center text-slate-400 text-sm">
+        Add PEOs and PLOs first to see a mapping.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Settings & Assessment Tools -->
+<div>
+    <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
+        <i class="fas fa-cog text-indigo-500"></i> Settings & Assessment Tools
+    </h4>
+    <div class="readonly-card">
+        {% for tool in current_snapshot.assessment_tools %}
+        <span class="tool-chip"><i class="fas fa-check text-[10px] text-emerald-500 mr-1"></i>{{ tool }}</span>
+        {% endfor %}
+        {% for tool in current_snapshot.assessment_tools_custom %}
+        <span class="tool-chip"><i class="fas fa-star text-[10px] text-amber-500 mr-1"></i>{{ tool }}</span>
+        {% endfor %}
+        {% if not current_snapshot.assessment_tools and not current_snapshot.assessment_tools_custom %}
+        <p class="text-xs text-slate-400 italic">No assessment tools selected.</p>
+        {% endif %}
+    </div>
+</div>
+
+        </div>
+
+        <!-- ============ TAB: VERSION HISTORY ============ -->
+        <div class="tab-panel p-6" data-tab-panel="history">
+            <p class="text-xs text-slate-400 mb-4">Every saved version, newest first. Expand a version to see what changed, why, and what the program's content looked like at that point in time.</p>
+{% if versions %}
+<div class="version-timeline">
+    {% for v in versions %}
+    <div class="version-entry {% if forloop.first %}is-current{% endif %}">
+        <div class="version-card" data-version-card>
+            <div class="version-card-header" data-version-toggle="v{{ v.version }}">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="version-tag {% if forloop.first %}current{% endif %}">v{{ v.version }}</span>
+                    {% if forloop.first %}
+                    <span class="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide">Current</span>
+                    {% endif %}
+                    <span class="text-xs text-slate-400">{{ v.date }} &middot; {{ v.editor }}</span>
+                </div>
+                <i class="fas fa-chevron-down chevron-icon text-xs"></i>
+            </div>
+
+            <div class="version-card-body">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Sections Changed</p>
+                <div class="mb-3">
+                    {% for s in v.sections_changed %}
+                    <span class="section-chip">{{ s }}</span>
+                    {% endfor %}
+                </div>
+
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Controller's Comments</p>
+                <div class="space-y-1.5 mb-1">
+                    {% for section_name, comment_text in v.comments.items %}
+                    <div class="version-comment-row">
+                        <strong>{{ section_name }}:</strong> {{ comment_text }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <button type="button" class="snapshot-toggle-btn" data-snapshot-toggle="v{{ v.version }}">
+                    <i class="fas fa-camera"></i> View full content as of v{{ v.version }}
+                    <i class="fas fa-chevron-down text-[10px]"></i>
+                </button>
+
+                <div class="snapshot-panel" data-snapshot-panel="v{{ v.version }}">
+                    <!-- Mission & Vision -->
+                    <div class="mb-6">
+                        <h5 class="text-xs font-bold text-slate-700 flex items-center gap-2 mb-2">
+                            <i class="fas fa-flag text-indigo-400"></i> Mission & Vision
+                        </h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="readonly-card">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Institution Vision</p>
+                                <p class="readonly-desc">{{ v.snapshot.inst_vision|default:"—" }}</p>
+                            </div>
+                            <div class="readonly-card">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Program Vision</p>
+                                <p class="readonly-desc">{{ v.snapshot.program_vision|default:"—" }}</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                            <div class="readonly-card">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Institution Mission</p>
+                                <ul class="space-y-1">
+                                    {% for m in v.snapshot.inst_missions %}
+                                    <li class="readonly-desc flex gap-2"><i class="fas fa-circle text-[5px] text-indigo-400 mt-2"></i><span>{{ m }}</span></li>
+                                    {% empty %}<li class="text-xs text-slate-400 italic">None</li>{% endfor %}
+                                </ul>
+                            </div>
+                            <div class="readonly-card">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Program Mission</p>
+                                <ul class="space-y-1">
+                                    {% for m in v.snapshot.program_missions %}
+                                    <li class="readonly-desc flex gap-2"><i class="fas fa-circle text-[5px] text-indigo-400 mt-2"></i><span>{{ m }}</span></li>
+                                    {% empty %}<li class="text-xs text-slate-400 italic">None</li>{% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PEOs -->
+                    <div class="mb-6">
+                        <h5 class="text-xs font-bold text-slate-700 flex items-center gap-2 mb-2">
+                            <i class="fas fa-bullseye text-indigo-400"></i> PEOs
+                        </h5>
+                        <div class="space-y-2">
+                            {% for peo in v.snapshot.peos %}
+                            <div class="readonly-card">
+                                <span class="readonly-label-badge">PEO {{ forloop.counter }}</span>
+                                <p class="readonly-title">{{ peo.title }}</p>
+                                <p class="readonly-desc">{{ peo.description }}</p>
+                            </div>
+                            {% empty %}
+                            <p class="text-xs text-slate-400 italic">No PEOs at this version.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- PLOs -->
+                    <div class="mb-6">
+                        <h5 class="text-xs font-bold text-slate-700 flex items-center gap-2 mb-2">
+                            <i class="fas fa-tasks text-indigo-400"></i> PLOs
+                        </h5>
+                        <div class="space-y-2">
+                            {% for plo in v.snapshot.plos %}
+                            <div class="readonly-card">
+                                <span class="readonly-label-badge plo">{{ forloop.counter }}.</span>
+                                <p class="readonly-title">{{ plo.title }}</p>
+                                <p class="readonly-desc">{{ plo.description }}</p>
+                            </div>
+                            {% empty %}
+                            <p class="text-xs text-slate-400 italic">No PLOs at this version.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Mapping -->
+                    <div class="mb-6">
+                        <h5 class="text-xs font-bold text-slate-700 flex items-center gap-2 mb-2">
+                            <i class="fas fa-link text-indigo-400"></i> PEO-PLO Mapping
+                        </h5>
+                        {% if v.snapshot.peos and v.snapshot.plos %}
+                        <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200">
+                                        <th class="px-3 py-1.5 text-left text-xs font-semibold text-slate-500">PLO \ PEO</th>
+                                        {% for peo in v.snapshot.peos %}
+                                        <th class="px-2 py-1.5 text-xs font-semibold text-slate-500">PEO {{ forloop.counter }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    {% for plo_row in v.snapshot.mapping_rows %}
+                                    <tr>
+                                        <td class="px-3 py-2 font-semibold text-slate-700 text-xs whitespace-nowrap">{{ forloop.counter }}. {{ plo_row.plo_title }}</td>
+                                        {% for checked in plo_row.cells %}
+                                        <td class="px-2 py-2 text-center">
+                                            {% if checked %}<i class="fas fa-check-circle mapping-yes"></i>{% else %}<i class="fas fa-circle mapping-no" style="font-size:6px;"></i>{% endif %}
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-slate-400 italic">No mapping available at this version.</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Settings -->
+                    <div>
+                        <h5 class="text-xs font-bold text-slate-700 flex items-center gap-2 mb-2">
+                            <i class="fas fa-cog text-indigo-400"></i> Assessment Tools
+                        </h5>
+                        <div class="readonly-card">
+                            {% for tool in v.snapshot.assessment_tools %}
+                            <span class="tool-chip"><i class="fas fa-check text-[10px] text-emerald-500 mr-1"></i>{{ tool }}</span>
+                            {% endfor %}
+                            {% for tool in v.snapshot.assessment_tools_custom %}
+                            <span class="tool-chip"><i class="fas fa-star text-[10px] text-amber-500 mr-1"></i>{{ tool }}</span>
+                            {% endfor %}
+                            {% if not v.snapshot.assessment_tools and not v.snapshot.assessment_tools_custom %}
+                            <p class="text-xs text-slate-400 italic">None selected.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center text-slate-400 text-sm">
+    <i class="fas fa-code-branch text-2xl block mb-2 text-slate-300"></i>
+    No version history yet.
+</div>
+{% endif %}
+
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<script>
+(function () {
+    // ── Tabs: Current Snapshot vs Version History ──────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            const panel = document.querySelector(`[data-tab-panel="${btn.dataset.tab}"]`);
+            if (panel) panel.classList.add('active');
+        });
+    });
+
+    // ── Version card expand/collapse ────────────────────────────────────────
+    document.querySelectorAll('[data-version-toggle]').forEach(function (header) {
+        header.addEventListener('click', function () {
+            const card = header.closest('.version-card');
+            card.classList.toggle('expanded');
+        });
+    });
+
+    // ── Per-version "view full content as of vN" toggle ─────────────────────
+    document.querySelectorAll('[data-snapshot-toggle]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation(); // don't collapse the parent version card
+            const key = btn.dataset.snapshotToggle;
+            const panel = document.querySelector(`[data-snapshot-panel="${key}"]`);
+            if (!panel) return;
+            const isShown = panel.classList.toggle('shown');
+            btn.querySelector('.fa-chevron-down') && (btn.querySelector('.fa-chevron-down').style.transform = isShown ? 'rotate(180deg)' : '');
+        });
+    });
+})();
+
+</script>
+
+{% endblock %}

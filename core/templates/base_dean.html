@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block page_title %}Dean Portal{% endblock %} | OBE Software</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+        }
+
+        /* Sidebar */
+        .dean-sidebar {
+            width: 256px;
+            background: #ffffff;
+            border-right: 1px solid #e2e8f0;
+            min-height: 100vh;
+        }
+        .dean-sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #64748b;
+            transition: background 0.15s, color 0.15s;
+        }
+        .dean-sidebar-link:hover {
+            background: #eef2ff;
+            color: #4f46e5;
+        }
+        .dean-sidebar-link.active {
+            background: #eef2ff;
+            color: #4f46e5;
+            font-weight: 600;
+        }
+        .dean-sidebar-link i {
+            width: 18px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .dean-sidebar-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0 14px;
+            margin-top: 18px;
+            margin-bottom: 6px;
+        }
+
+        /* Role badge in the brand header */
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #4f46e5;
+            background: #e0e7ff;
+            border-radius: 999px;
+            padding: 2px 9px;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        /* Topbar */
+        .dean-topbar {
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        /* Mobile sidebar drawer */
+        @media (max-width: 1024px) {
+            .dean-sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                z-index: 50;
+                transform: translateX(-100%);
+                transition: transform 0.2s ease;
+                box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0);
+            }
+            .dean-sidebar.open {
+                transform: translateX(0);
+                box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.4);
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-700">
+
+<div class="flex">
+
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="dean-sidebar flex-shrink-0 flex flex-col" id="dean-sidebar">
+        <!-- Brand -->
+        <div class="px-5 py-5 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                    OBE
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-slate-800 leading-tight">OBE Software</p>
+                    <span class="role-badge mt-0.5"><i class="fas fa-user-tie text-[9px]"></i> Dean</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nav -->
+        <nav class="flex-1 px-3 py-4 overflow-y-auto">
+            <p class="dean-sidebar-section-label">Overview</p>
+            <a href="{% url 'dean_dashboard' %}" class="dean-sidebar-link {% if request.resolver_match.url_name == 'dean_dashboard' %}active{% endif %}">
+                <i class="fas fa-gauge-high"></i> Dashboard
+            </a>
+
+            <p class="dean-sidebar-section-label">Programs</p>
+            <a href="{% url 'dean_program_list' %}" class="dean-sidebar-link {% if request.resolver_match.url_name == 'dean_program_list' or request.resolver_match.url_name == 'dean_program_detail' %}active{% endif %}">
+                <i class="fas fa-graduation-cap"></i> All Programs
+            </a>
+            <a href="{% url 'dean_program_create' %}" class="dean-sidebar-link {% if request.resolver_match.url_name == 'dean_program_create' %}active{% endif %}">
+                <i class="fas fa-plus-circle"></i> Create Program
+            </a>
+        </nav>
+
+        <!-- Footer / account -->
+        <div class="px-3 py-4 border-t border-slate-100">
+            <div class="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-50 transition cursor-pointer">
+                <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    D
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-slate-700 truncate">Office of the Dean</p>
+                    <p class="text-[11px] text-slate-400 truncate">dean@university.edu</p>
+                </div>
+                <i class="fas fa-arrow-right-from-bracket text-slate-400 text-xs"></i>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Mobile overlay backdrop -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/40 z-40 hidden lg:hidden"></div>
+
+    <!-- ==================== MAIN ==================== -->
+    <div class="flex-1 min-h-screen flex flex-col min-w-0">
+
+        <!-- Topbar -->
+        <header class="dean-topbar sticky top-0 z-30 px-4 sm:px-6 py-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button id="sidebar-toggle" class="lg:hidden text-slate-500 hover:text-indigo-600 text-lg">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <!--  🔽 FIXED: changed block name from page_title to page_heading -->
+                <h1 class="text-base sm:text-lg font-bold text-slate-800">{% block page_heading %}Dean Portal{% endblock %}</h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <button class="text-slate-400 hover:text-indigo-600 transition relative">
+                    <i class="fas fa-bell text-base"></i>
+                </button>
+                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">
+                    D
+                </div>
+            </div>
+        </header>
+
+        <!-- Page content -->
+        <main class="flex-1 p-4 sm:p-6">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const sidebar = document.getElementById('dean-sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        const toggle = document.getElementById('sidebar-toggle');
+
+        function openSidebar() {
+            sidebar.classList.add('open');
+            backdrop.classList.remove('hidden');
+        }
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            backdrop.classList.add('hidden');
+        }
+        if (toggle) toggle.addEventListener('click', openSidebar);
+        if (backdrop) backdrop.addEventListener('click', closeSidebar);
+    })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,129 @@
+{% extends 'base_dean.html' %}
+{% load static %}
+
+{% block page_title %}Create Program{% endblock %}
+{% block page_heading %}Create Program{% endblock %}
+
+{% block content %}
+
+<style>
+    .controller-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+    }
+    .controller-option:hover {
+        border-color: #c7d2fe;
+        background: #f8fafc;
+    }
+    .controller-option.selected {
+        border-color: #6366f1;
+        background: #eef2ff;
+    }
+    .controller-avatar-lg {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #e0e7ff;
+        color: #4f46e5;
+        font-size: 13px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .input-error {
+        border-color: #f87171 !important;
+    }
+    .input-error-text {
+        font-size: 12px;
+        color: #dc2626;
+        margin-top: 4px;
+    }
+</style>
+
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h2 class="text-xl font-bold text-slate-800">Create New Program</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Assign a program code, name, and a Program Controller. The controller will configure mission, PEOs, PLOs, and assessment details after this.</p>
+    </div>
+
+    <form method="post" action="{% url 'dean_program_create' %}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Program Code <span class="text-red-500">*</span></label>
+                <input type="text" name="code" value="{{ form_data.code|default:'' }}" placeholder="e.g., BSCS"
+                       class="w-full border {% if errors.code %}input-error{% else %}border-slate-300{% endif %} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                {% if errors.code %}<p class="input-error-text">{{ errors.code }}</p>{% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Program Name <span class="text-red-500">*</span></label>
+                <input type="text" name="name" value="{{ form_data.name|default:'' }}" placeholder="e.g., Bachelor of Science in Computer Science"
+                       class="w-full border {% if errors.name %}input-error{% else %}border-slate-300{% endif %} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                {% if errors.name %}<p class="input-error-text">{{ errors.name }}</p>{% endif %}
+            </div>
+        </div>
+
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-medium text-slate-700">Assign Program Controller <span class="text-red-500">*</span></label>
+                <span class="text-xs text-slate-400">{{ controllers|length }} available</span>
+            </div>
+
+            <input type="hidden" name="controller_id" id="controller-id-input" value="{{ form_data.controller_id|default:'' }}" />
+
+            <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {% for c in controllers %}
+                <div class="controller-option {% if form_data.controller_id|stringformat:'s' == c.id|stringformat:'s' %}selected{% endif %}" data-controller-id="{{ c.id }}">
+                    <div class="controller-avatar-lg">{{ c.name|slice:":1" }}</div>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-slate-700">{{ c.name }}</p>
+                        <p class="text-xs text-slate-500">{{ c.email }} &middot; {{ c.department }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-medium text-slate-400">{{ c.active_programs }} active</p>
+                    </div>
+                    <i class="fas fa-check-circle text-indigo-500 ml-1 controller-check" style="{% if form_data.controller_id|stringformat:'s' != c.id|stringformat:'s' %}display:none;{% endif %}"></i>
+                </div>
+                {% endfor %}
+            </div>
+            {% if errors.controller_id %}<p class="input-error-text">{{ errors.controller_id }}</p>{% endif %}
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+            <a href="{% url 'dean_program_list' %}" class="px-5 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">Cancel</a>
+            <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm shadow-indigo-200">
+                <i class="fas fa-plus mr-1"></i> Create Program
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    const hiddenInput = document.getElementById('controller-id-input');
+    document.querySelectorAll('.controller-option').forEach(function (opt) {
+        opt.addEventListener('click', function () {
+            document.querySelectorAll('.controller-option').forEach(function (o) {
+                o.classList.remove('selected');
+                o.querySelector('.controller-check').style.display = 'none';
+            });
+            opt.classList.add('selected');
+            opt.querySelector('.controller-check').style.display = 'inline-block';
+            hiddenInput.value = opt.dataset.controllerId;
+        });
+    });
+})();
+</script>
+
+{% endblock %}
