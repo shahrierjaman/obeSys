@@ -30,5 +30,10 @@ urlpatterns = [
     path('surveys/', views.survey_list, name='survey_list'),
     path('surveys/builder/<int:offering_id>/', views.survey_builder, name='survey_builder'),
     path('surveys/<int:pk>/results/', views.survey_results, name='survey_results'),
+
+    path('dean/dashboard/', views.dean_dashboard, name='dean_dashboard'),
+    path('dean/programs/', views.dean_program_list, name='dean_program_list'),
+    path('dean/programs/create/', views.dean_program_create, name='dean_program_create'),
+    path('dean/programs/<int:program_id>/', views.dean_program_detail, name='dean_program_detail'),
     
 ]
