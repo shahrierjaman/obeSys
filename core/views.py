@@ -1,15 +1,9 @@
 from datetime import date
 
 from django.http import JsonResponse
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404,redirect
 
 
-# ----------------------------------------------------------------------------
-# DEMO DATA — replace with real querysets once the Program model exists.
-# Programs are created by the Dean (code + name) and assigned to a
-# Program Controller, who configures the rest from program_form.html.
-# A program at version 0 has been assigned but never opened/managed yet.
-# ----------------------------------------------------------------------------
 DEMO_PROGRAMS = [
     {'id': 1, 'code': 'BSCS', 'name': 'Bachelor of Science in Computer Science', 'version': 3, 'status': 'Active', 'peo_count': 3, 'plo_count': 12},
     {'id': 2, 'code': 'BSEEE', 'name': 'Bachelor of Science in Electrical & Electronic Engineering', 'version': 1, 'status': 'Active', 'peo_count': 3, 'plo_count': 10},
@@ -20,10 +14,6 @@ DEMO_PROGRAMS = [
     {'id': 6, 'code': 'BSIT', 'name': 'Bachelor of Science in Information Technology', 'version': 0, 'status': 'New', 'peo_count': 0, 'plo_count': 0},
 ]
 
-
-# Demo activity feed for the dashboard. Replace with a real ActivityLog
-# model/query (e.g. ActivityLog.objects.filter(user=request.user)[:5])
-# once one exists.
 RECENT_ACTIVITY = [
     {'icon': 'fa-link', 'color': 'indigo', 'text': 'Updated PEO-PLO mapping for BSCS.', 'time': '2 hours ago'},
     {'icon': 'fa-user-tie', 'color': 'amber', 'text': 'Dean assigned a new program: BSIT.', 'time': '1 day ago'},
@@ -1116,3 +1106,339 @@ def survey_results(request, pk):
         'avg_completion_time': '6m',
     }
     return render(request, 'survey_results.html', {'survey': survey})
+
+
+DEMO_CONTROLLERS = [
+    {'id': 1, 'name': 'Dr. Farhan Ahmed', 'email': 'farhan.ahmed@university.edu', 'department': 'Computer Science', 'active_programs': 1},
+    {'id': 2, 'name': 'Dr. Nusrat Jahan', 'email': 'nusrat.jahan@university.edu', 'department': 'Electrical & Electronic Engineering', 'active_programs': 1},
+    {'id': 3, 'name': 'Dr. Imran Kabir', 'email': 'imran.kabir@university.edu', 'department': 'Civil Engineering', 'active_programs': 1},
+    {'id': 4, 'name': 'Dr. Sabrina Islam', 'email': 'sabrina.islam@university.edu', 'department': 'Business Administration', 'active_programs': 1},
+    {'id': 5, 'name': 'Dr. Tanvir Hasan', 'email': 'tanvir.hasan@university.edu', 'department': 'Mechanical Engineering', 'active_programs': 0},
+    {'id': 6, 'name': 'Dr. Mahmuda Khatun', 'email': 'mahmuda.khatun@university.edu', 'department': 'Information Technology', 'active_programs': 0},
+]
+
+DEMO_PROGRAMS = [
+    {'id': 1, 'code': 'BSCS', 'name': 'Bachelor of Science in Computer Science', 'version': 3, 'status': 'Active', 'peo_count': 3, 'plo_count': 6, 'controller_id': 1, 'created_on': 'Mar 20, 2025', 'last_updated': 'May 14, 2026'},
+    {'id': 2, 'code': 'BSEEE', 'name': 'Bachelor of Science in Electrical & Electronic Engineering', 'version': 1, 'status': 'Active', 'peo_count': 3, 'plo_count': 5, 'controller_id': 2, 'created_on': 'Jan 18, 2026', 'last_updated': 'Jan 18, 2026'},
+    {'id': 3, 'code': 'BSCE', 'name': 'Bachelor of Science in Civil Engineering', 'version': 1, 'status': 'Draft', 'peo_count': 2, 'plo_count': 8, 'controller_id': 3, 'created_on': 'Feb 02, 2026', 'last_updated': 'Feb 02, 2026'},
+    {'id': 4, 'code': 'BBA', 'name': 'Bachelor of Business Administration', 'version': 2, 'status': 'Archived', 'peo_count': 4, 'plo_count': 11, 'controller_id': 4, 'created_on': 'Sep 10, 2024', 'last_updated': 'Nov 02, 2025'},
+    {'id': 5, 'code': 'BSME', 'name': 'Bachelor of Science in Mechanical Engineering', 'version': 0, 'status': 'New', 'peo_count': 0, 'plo_count': 0, 'controller_id': 5, 'created_on': 'Jun 01, 2026', 'last_updated': 'Jun 01, 2026'},
+    {'id': 6, 'code': 'BSIT', 'name': 'Bachelor of Science in Information Technology', 'version': 0, 'status': 'New', 'peo_count': 0, 'plo_count': 0, 'controller_id': 6, 'created_on': 'Jun 15, 2026', 'last_updated': 'Jun 15, 2026'},
+]
+
+
+def get_controller(controller_id):
+    return next((c for c in DEMO_CONTROLLERS if c['id'] == controller_id), None)
+
+
+def _with_mapping_rows(snapshot):
+    snapshot = dict(snapshot)
+    peos = snapshot.get('peos', [])
+    plos = snapshot.get('plos', [])
+    mapping = snapshot.get('mapping', [])
+
+    rows = []
+    for plo_idx, plo in enumerate(plos):
+        cells = []
+        for peo_idx in range(len(peos)):
+            row = mapping[peo_idx] if peo_idx < len(mapping) else []
+            cells.append(bool(row[plo_idx]) if plo_idx < len(row) else False)
+        rows.append({'plo_title': plo.get('title', ''), 'cells': cells})
+
+    snapshot['mapping_rows'] = rows
+    return snapshot
+
+
+
+DEMO_PROGRAM_VERSIONS = {
+    1: [  # BSCS — 3 versions
+        {
+            'version': 1,
+            'date': 'Mar 20, 2025',
+            'editor': 'Dr. Farhan Ahmed',
+            'sections_changed': ['Mission & Vision', 'PEOs', 'PLOs', 'PEO-PLO Mapping', 'Settings & Assessment Tools'],
+            'comments': {
+                'Mission & Vision': 'Initial setup based on department curriculum committee draft.',
+                'PEOs': 'Initial PEOs adapted from outgoing curriculum.',
+                'PLOs': 'Imported ABET preset and adjusted wording for local context.',
+                'PEO-PLO Mapping': 'Initial mapping drafted with curriculum committee.',
+                'Settings & Assessment Tools': 'Initial assessment tools selected.',
+            },
+            'snapshot': {
+                'inst_vision': 'To be a globally recognized institution advancing knowledge and innovation for the betterment of society.',
+                'inst_missions': ['To advance knowledge through excellence in teaching and research.'],
+                'program_vision': 'To be a leading program producing computer science graduates equipped for industry.',
+                'program_missions': [
+                    'To provide a solid computing curriculum.',
+                    'To prepare graduates for the software industry.',
+                ],
+                'peos': [
+                    {'title': 'Professionalism', 'description': 'Graduates will practice with integrity and professionalism.'},
+                    {'title': 'Technical Competence', 'description': 'Graduates will apply core computing principles to solve problems.'},
+                    {'title': 'Lifelong Learning', 'description': 'Graduates will pursue continued learning.'},
+                ],
+                'plos': [
+                    {'title': 'Engineering knowledge', 'description': 'Apply knowledge of computing and mathematics to solve problems.'},
+                    {'title': 'Problem analysis', 'description': 'Identify and analyze computing problems.'},
+                    {'title': 'Design/development of solutions', 'description': 'Design software solutions for specified needs.'},
+                    {'title': 'Tool usage', 'description': 'Use standard computing tools and techniques.'},
+                    {'title': 'Communication', 'description': 'Communicate technical work effectively.'},
+                ],
+                'mapping': [
+                    [True, True, False, False, True],
+                    [True, True, True, True, False],
+                    [False, False, True, True, True],
+                ],
+                'assessment_tools': ['Quiz', 'Midterm', 'Final Project'],
+                'assessment_tools_custom': [],
+            },
+        },
+        {
+            'version': 2,
+            'date': 'Nov 02, 2025',
+            'editor': 'Dr. Farhan Ahmed',
+            'sections_changed': ['Mission & Vision', 'Settings & Assessment Tools'],
+            'comments': {
+                'Mission & Vision': 'Revised program mission to reflect new research focus areas.',
+                'Settings & Assessment Tools': 'Added Capstone Defense as a recurring assessment tool.',
+            },
+            'snapshot': {
+                'inst_vision': 'To be a globally recognized institution advancing knowledge and innovation for the betterment of society.',
+                'inst_missions': [
+                    'To advance knowledge through excellence in teaching and research.',
+                    'To cultivate ethical, socially responsible leaders.',
+                ],
+                'program_vision': 'To be a leading program producing computer science graduates who innovate and lead in a digital world.',
+                'program_missions': [
+                    'To provide a rigorous, industry-relevant computing curriculum.',
+                    'To foster research and innovation in emerging technologies.',
+                ],
+                'peos': [
+                    {'title': 'Professionalism', 'description': 'Graduates will practice with integrity and professionalism.'},
+                    {'title': 'Technical Competence', 'description': 'Graduates will apply core computing principles to solve problems.'},
+                    {'title': 'Lifelong Learning', 'description': 'Graduates will pursue continued learning.'},
+                ],
+                'plos': [
+                    {'title': 'Engineering knowledge', 'description': 'Apply knowledge of computing and mathematics to solve problems.'},
+                    {'title': 'Problem analysis', 'description': 'Identify and analyze computing problems.'},
+                    {'title': 'Design/development of solutions', 'description': 'Design software solutions for specified needs.'},
+                    {'title': 'Tool usage', 'description': 'Use standard computing tools and techniques.'},
+                    {'title': 'Communication', 'description': 'Communicate technical work effectively.'},
+                ],
+                'mapping': [
+                    [True, True, False, False, True],
+                    [True, True, True, True, False],
+                    [False, False, True, True, True],
+                ],
+                'assessment_tools': ['Quiz', 'Midterm', 'Final Project', 'Presentation'],
+                'assessment_tools_custom': ['Capstone Defense'],
+            },
+        },
+        {
+            'version': 3,
+            'date': 'May 14, 2026',
+            'editor': 'Dr. Farhan Ahmed',
+            'sections_changed': ['PLOs', 'PEO-PLO Mapping'],
+            'comments': {
+                'PLOs': 'Updated wording on Tool Usage to match latest ABET descriptor and added Ethics PLO.',
+                'PEO-PLO Mapping': 'Re-mapped after PLO wording update and new Ethics PLO.',
+            },
+            'snapshot': {
+                'inst_vision': 'To be a globally recognized institution advancing knowledge and innovation for the betterment of society.',
+                'inst_missions': [
+                    'To advance knowledge through excellence in teaching and research.',
+                    'To cultivate ethical, socially responsible leaders.',
+                ],
+                'program_vision': 'To be a leading program producing computer science graduates who innovate and lead in a digital world.',
+                'program_missions': [
+                    'To provide a rigorous, industry-relevant computing curriculum.',
+                    'To foster research and innovation in emerging technologies.',
+                    'To instill professional and ethical responsibility in graduates.',
+                ],
+                'peos': [
+                    {'title': 'Professionalism', 'description': 'Graduates will engage in professional practice with integrity, ethics, and respect for diversity.'},
+                    {'title': 'Technical Excellence', 'description': 'Graduates will apply advanced computing principles to design and develop robust, scalable software solutions.'},
+                    {'title': 'Lifelong Learning', 'description': 'Graduates will pursue continued learning and professional development throughout their careers.'},
+                ],
+                'plos': [
+                    {'title': 'Engineering knowledge', 'description': 'Apply knowledge of computing, mathematics, and science to solve complex computing problems.'},
+                    {'title': 'Problem analysis', 'description': 'Identify, formulate, and analyze complex computing problems using first principles.'},
+                    {'title': 'Design/development of solutions', 'description': 'Design solutions for complex computing problems and design software systems that meet specified needs.'},
+                    {'title': 'Modern tool usage', 'description': 'Create, select, and apply appropriate techniques, resources, and modern computing tools.'},
+                    {'title': 'Communication', 'description': 'Communicate effectively on complex computing activities with the community and society at large.'},
+                    {'title': 'Ethics', 'description': 'Apply ethical principles and commit to professional ethics and responsibilities of computing practice.'},
+                ],
+                'mapping': [
+                    [True, True, False, False, True, True],
+                    [True, True, True, True, False, False],
+                    [False, False, True, True, True, False],
+                ],
+                'assessment_tools': ['Quiz', 'Midterm', 'Final Project', 'Presentation'],
+                'assessment_tools_custom': ['Capstone Defense'],
+            },
+        },
+    ],
+    2: [  # BSEEE — 1 version
+        {
+            'version': 1,
+            'date': 'Jan 18, 2026',
+            'editor': 'Dr. Nusrat Jahan',
+            'sections_changed': ['Mission & Vision', 'PEOs', 'PLOs', 'PEO-PLO Mapping', 'Settings & Assessment Tools'],
+            'comments': {
+                'Mission & Vision': 'Initial program setup.',
+                'PEOs': 'Initial PEOs drafted with department input.',
+                'PLOs': 'Imported BAETE preset.',
+                'PEO-PLO Mapping': 'Initial mapping drafted.',
+                'Settings & Assessment Tools': 'Initial assessment tools selected.',
+            },
+            'snapshot': {
+                'inst_vision': 'To be a globally recognized institution advancing knowledge and innovation for the betterment of society.',
+                'inst_missions': ['To advance knowledge through excellence in teaching and research.'],
+                'program_vision': 'To be a recognized leader in electrical and electronic engineering education and innovation.',
+                'program_missions': [
+                    'To deliver a strong foundation in electrical and electronic engineering principles.',
+                    'To prepare graduates for industry, research, and entrepreneurship.',
+                ],
+                'peos': [
+                    {'title': 'Technical Competence', 'description': 'Graduates will apply electrical and electronic engineering principles to solve real-world problems.'},
+                    {'title': 'Professional Growth', 'description': 'Graduates will pursue continued professional development and leadership roles.'},
+                    {'title': 'Societal Impact', 'description': 'Graduates will contribute engineering solutions that benefit society and the environment.'},
+                ],
+                'plos': [
+                    {'title': 'Engineering knowledge', 'description': 'Apply knowledge of mathematics, science, and engineering fundamentals to electrical and electronic systems.'},
+                    {'title': 'Design/development of solutions', 'description': 'Design electrical and electronic systems that meet specified needs.'},
+                    {'title': 'Modern tool usage', 'description': 'Apply modern engineering and IT tools to electrical engineering activities.'},
+                    {'title': 'Ethics', 'description': 'Apply ethical principles in engineering practice.'},
+                    {'title': 'Communication', 'description': 'Communicate effectively with technical and non-technical audiences.'},
+                ],
+                'mapping': [
+                    [True, True, True, False, False],
+                    [False, True, True, True, False],
+                    [True, False, False, True, True],
+                ],
+                'assessment_tools': ['Quiz', 'Midterm', 'Lab Report', 'Practical Exam'],
+                'assessment_tools_custom': [],
+            },
+        },
+    ],
+}
+
+
+def _section_complete(program_id):
+    """Has this program been configured at least once (version >= 1)?"""
+    program = next((p for p in DEMO_PROGRAMS if p['id'] == program_id), None)
+    return bool(program and program['version'] > 0)
+
+
+def dean_dashboard(request):
+    
+    total_programs = len(DEMO_PROGRAMS)
+    active_programs = len([p for p in DEMO_PROGRAMS if p['status'] == 'Active'])
+    pending_programs = [p for p in DEMO_PROGRAMS if p['version'] == 0]
+    total_controllers = len(DEMO_CONTROLLERS)
+    unassigned_controllers = len([c for c in DEMO_CONTROLLERS if c['active_programs'] == 0])
+
+    recent_activity = [
+        {'icon': 'fa-code-branch', 'color': 'indigo', 'text': 'BSCS was updated to v3 by Dr. Farhan Ahmed.', 'time': '1 month ago'},
+        {'icon': 'fa-user-plus', 'color': 'emerald', 'text': 'Assigned Dr. Mahmuda Khatun as controller for BSIT.', 'time': '1 week ago'},
+        {'icon': 'fa-plus-circle', 'color': 'sky', 'text': 'Created new program: BSIT.', 'time': '1 week ago'},
+        {'icon': 'fa-code-branch', 'color': 'indigo', 'text': 'BSCE was configured for the first time (v1) by Dr. Imran Kabir.', 'time': '4 months ago'},
+    ]
+
+    context = {
+        'today': date.today().strftime('%A, %B %d, %Y'),
+        'stats': {
+            'total_programs': total_programs,
+            'active_programs': active_programs,
+            'pending_programs': len(pending_programs),
+            'total_controllers': total_controllers,
+            'unassigned_controllers': unassigned_controllers,
+        },
+        'pending_program_list': pending_programs,
+        'recent_activity': recent_activity,
+    }
+    return render(request, 'dean_dashboard.html', context)
+
+
+def dean_program_list(request):
+    programs = []
+    for p in DEMO_PROGRAMS:
+        controller = get_controller(p['controller_id'])
+        programs.append({**p, 'controller': controller})
+
+    context = {'programs': programs}
+    return render(request, 'dean_program_list.html', context)
+
+
+def dean_program_create(request):
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip()
+        name = request.POST.get('name', '').strip()
+        controller_id = request.POST.get('controller_id', '')
+
+        errors = {}
+        if not code:
+            errors['code'] = 'Program code is required.'
+        if not name:
+            errors['name'] = 'Program name is required.'
+        if not controller_id:
+            errors['controller_id'] = 'Please assign a program controller.'
+
+        if not errors:
+            new_id = max(p['id'] for p in DEMO_PROGRAMS) + 1
+            DEMO_PROGRAMS.append({
+                'id': new_id,
+                'code': code,
+                'name': name,
+                'version': 0,
+                'status': 'New',
+                'peo_count': 0,
+                'plo_count': 0,
+                'controller_id': int(controller_id),
+                'created_on': date.today().strftime('%b %d, %Y'),
+                'last_updated': date.today().strftime('%b %d, %Y'),
+            })
+            return redirect('dean_program_list')
+
+        context = {
+            'controllers': DEMO_CONTROLLERS,
+            'errors': errors,
+            'form_data': {'code': code, 'name': name, 'controller_id': controller_id},
+        }
+        return render(request, 'dean_program_create.html', context)
+
+    context = {'controllers': DEMO_CONTROLLERS, 'errors': {}, 'form_data': {}}
+    return render(request, 'dean_program_create.html', context)
+
+
+def dean_program_detail(request, program_id):
+    program = next((p for p in DEMO_PROGRAMS if p['id'] == program_id), None)
+    if program is None:
+        return render(request, 'dean_program_list.html', {
+            'programs': DEMO_PROGRAMS,
+            'error': 'Program not found.',
+        })
+
+    controller = get_controller(program['controller_id'])
+    versions = DEMO_PROGRAM_VERSIONS.get(program_id, [])
+    # Current state = snapshot of the latest version (or empty shell if never configured)
+    current_snapshot_raw = versions[-1]['snapshot'] if versions else {
+        'inst_vision': '', 'inst_missions': [], 'program_vision': '', 'program_missions': [],
+        'peos': [], 'plos': [], 'mapping': [], 'assessment_tools': [], 'assessment_tools_custom': [],
+    }
+    current_snapshot = _with_mapping_rows(current_snapshot_raw)
+
+    versions_desc = []
+    for v in reversed(versions):
+        v = dict(v)
+        v['snapshot'] = _with_mapping_rows(v['snapshot'])
+        versions_desc.append(v)
+
+    context = {
+        'program': program,
+        'controller': controller,
+        'current_snapshot': current_snapshot,
+        'versions': versions_desc,
+        'is_unconfigured': program['version'] == 0,
+    }
+    return render(request, 'dean_program_detail.html', context)
