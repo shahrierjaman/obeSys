@@ -74,32 +74,54 @@ These steps will get a copy of the project running locally for development.
 
 ### Prerequisites
 
-- Python 3.10+
-- pip
-- (Optional) a virtual environment tool — `venv` is built into Python and used below
+- Python 3.9+
+- [pipenv](https://pipenv.pypa.io/) (recommended) — install with `pip install pipenv`
+- Firebase project with Firestore database configured
+- Service account JSON key from Firebase
 
 ### 1. Clone the repository
 
 ```bash
 git clone https://github.com/shahrierjaman/obeSys.git
+cd obeSys
 ```
 
-### 2. Create and activate a virtual environment (optional)
+### 2. Set up environment variables
+
+Copy `.env.example` to `.env` and fill in your Firebase credentials:
 
 ```bash
-# macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
-
-# Windows
-python -m venv venv
-venv\Scripts\activate
+cp .env.example .env
 ```
 
-### 3. Install dependencies
+Then edit `.env` and add:
+- `GOOGLE_APPLICATION_CREDENTIALS`: Path to your Firebase service account JSON key
+- `FIREBASE_PROJECT_ID`: Your Firebase project ID
+- `FIREBASE_DATABASE_ID`: Your Firestore database ID (e.g., `obesys2026`)
+
+**Example:**
+```
+GOOGLE_APPLICATION_CREDENTIALS=/Users/jahinabid/Downloads/obesity-firebase-adminsdk-fbsvc-xyz.json
+FIREBASE_PROJECT_ID=obesity-3e39d
+FIREBASE_DATABASE_ID=obesity2026
+```
+
+### 3. Install dependencies with pipenv
 
 ```bash
-pip install -r requirements.txt
+pipenv install
+```
+
+This reads `Pipfile` and creates a `.venv` virtual environment.
+
+Activate the environment:
+```bash
+pipenv shell
+```
+
+Or, run commands inside it without activating:
+```bash
+pipenv run python manage.py runserver
 ```
 
 ### 4. Apply migrations
@@ -133,20 +155,21 @@ This project is under active development. Here's where things currently stand:
 | Layer | Status |
 |---|---|
 | URL routing | ✅ Implemented (`core/urls.py`) |
-| Views | ✅ Implemented, currently powered by in-memory demo data in `views.py` |
+| Views | ✅ Implemented, powered by Firestore backend (`core/firestore_service.py`) |
 | Templates | ✅ Implemented for all core workflows listed above |
+| Firestore backend | ✅ Configured with Firebase Admin SDK |
 | Database models | ⚠️ Not yet implemented (`core/models.py` is a placeholder) |
 | Authentication | ⚠️ Login template exists; auth logic is not wired up yet |
 | Persistence | ⚠️ Forms currently do not save to a database — submissions are not yet persisted |
 
-**What "demo data" means right now:** values like the program list, PEOs/PLOs, cohorts, and version history are hard-coded Python lists/dicts inside `views.py`, clearly marked with comments like `# DEMO DATA — replace with real querysets once the model exists`. This lets the full UI/UX be built and reviewed before the data model is finalized.
+**Data layer update:** Program data is now stored in Google Cloud Firestore, with demo programs automatically seeded on initialization. The `core/firestore_service.py` module provides helpers for CRUD operations on programs and other entities.
 
 ### Planned next steps
 
 - [ ] Design and implement `core/models.py` (Program, PEO, PLO, Course, Cohort, Student, ProgramVersion, etc.)
-- [ ] Replace demo data in `views.py` with real querysets
+- [ ] Wire up form persistence for program create/edit
 - [ ] Wire up authentication and role-based access (Dean / Program Controller / Instructor)
-- [ ] Persist form submissions (program create/edit, course mapping, cohort upload)
+- [ ] Persist form submissions (course mapping, cohort upload)
 - [ ] Add automated tests
 
 ---

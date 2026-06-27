@@ -1,18 +1,9 @@
 from datetime import date
 
 from django.http import JsonResponse
-from django.shortcuts import render, get_object_or_404,redirect
+from django.shortcuts import render, get_object_or_404, redirect
 
-
-DEMO_PROGRAMS = [
-    {'id': 1, 'code': 'BSCS', 'name': 'Bachelor of Science in Computer Science', 'version': 3, 'status': 'Active', 'peo_count': 3, 'plo_count': 12},
-    {'id': 2, 'code': 'BSEEE', 'name': 'Bachelor of Science in Electrical & Electronic Engineering', 'version': 1, 'status': 'Active', 'peo_count': 3, 'plo_count': 10},
-    {'id': 3, 'code': 'BSCE', 'name': 'Bachelor of Science in Civil Engineering', 'version': 1, 'status': 'Draft', 'peo_count': 2, 'plo_count': 8},
-    {'id': 4, 'code': 'BBA', 'name': 'Bachelor of Business Administration', 'version': 2, 'status': 'Archived', 'peo_count': 4, 'plo_count': 11},
-    # Assigned by the Dean but not yet opened/configured by the controller (v0)
-    {'id': 5, 'code': 'BSME', 'name': 'Bachelor of Science in Mechanical Engineering', 'version': 0, 'status': 'New', 'peo_count': 0, 'plo_count': 0},
-    {'id': 6, 'code': 'BSIT', 'name': 'Bachelor of Science in Information Technology', 'version': 0, 'status': 'New', 'peo_count': 0, 'plo_count': 0},
-]
+from .firestore_service import list_programs, get_program
 
 RECENT_ACTIVITY = [
     {'icon': 'fa-link', 'color': 'indigo', 'text': 'Updated PEO-PLO mapping for BSCS.', 'time': '2 hours ago'},
@@ -23,143 +14,6 @@ RECENT_ACTIVITY = [
 ]
 
 
-# ----------------------------------------------------------------------------
-# DEMO PROGRAM DETAIL — the full configured content for a program that has
-# already been managed at least once (version >= 1). Replace with real
-# related-model lookups once Mission / PEO / PLO / Mapping / AssessmentTool
-# models exist, e.g.:
-#     program.missions.filter(scope='institution')
-#     program.peos.order_by('order')
-# Keyed by program id. Programs not present here (e.g. v0 / brand new ones)
-# simply have nothing to prefill — program_edit should not be reachable for
-# those (they use "Manage", i.e. program_create, instead).
-# ----------------------------------------------------------------------------
-DEMO_PROGRAM_DETAIL = {
-    1: {  # BSCS
-        'inst_vision': 'To be a globally recognized institution advancing knowledge and innovation for the betterment of society.',
-        'inst_missions': [
-            'To advance knowledge through excellence in teaching and research.',
-            'To cultivate ethical, socially responsible leaders.',
-        ],
-        'program_vision': 'To be a leading program producing computer science graduates who innovate and lead in a digital world.',
-        'program_missions': [
-            'To provide a rigorous, industry-relevant computing curriculum.',
-            'To foster research and innovation in emerging technologies.',
-            'To instill professional and ethical responsibility in graduates.',
-        ],
-        'peos': [
-            {
-                'title': 'Professionalism',
-                'description': 'Graduates will engage in professional practice with integrity, ethics, and respect for diversity.',
-            },
-            {
-                'title': 'Technical Excellence',
-                'description': 'Graduates will apply advanced computing principles to design and develop robust, scalable software solutions.',
-            },
-            {
-                'title': 'Lifelong Learning',
-                'description': 'Graduates will pursue continued learning and professional development throughout their careers.',
-            },
-        ],
-        'plos': [
-            {'title': 'Engineering knowledge', 'description': 'Apply knowledge of computing, mathematics, and science to solve complex computing problems.'},
-            {'title': 'Problem analysis', 'description': 'Identify, formulate, and analyze complex computing problems using first principles.'},
-            {'title': 'Design/development of solutions', 'description': 'Design solutions for complex computing problems and design software systems that meet specified needs.'},
-            {'title': 'Modern tool usage', 'description': 'Create, select, and apply appropriate techniques, resources, and modern computing tools.'},
-            {'title': 'Communication', 'description': 'Communicate effectively on complex computing activities with the community and society at large.'},
-            {'title': 'Ethics', 'description': 'Apply ethical principles and commit to professional ethics and responsibilities of computing practice.'},
-        ],
-        # mapping[peo_index][plo_index] = bool, aligned positionally with peos/plos above
-        'mapping': [
-            [True, True, False, False, True, True],
-            [True, True, True, True, False, False],
-            [False, False, True, True, True, False],
-        ],
-        'assessment_tools': ['Quiz', 'Midterm', 'Final Project', 'Presentation'],
-        'assessment_tools_custom': ['Capstone Defense'],
-        'version_history': [
-            {
-                'version': 3,
-                'date': 'May 14, 2026',
-                'editor': 'Dr. Farhan Ahmed',
-                'sections_changed': ['PLOs', 'PEO-PLO Mapping'],
-                'comments': {
-                    'PLOs': 'Updated wording on Modern Tool Usage to match latest ABET descriptor.',
-                    'PEO-PLO Mapping': 'Re-mapped PLO 4 and 6 after PLO wording update.',
-                },
-            },
-            {
-                'version': 2,
-                'date': 'Nov 02, 2025',
-                'editor': 'Dr. Farhan Ahmed',
-                'sections_changed': ['Mission & Vision', 'Settings & Assessment Tools'],
-                'comments': {
-                    'Mission & Vision': 'Revised program mission to reflect new research focus areas.',
-                    'Settings & Assessment Tools': 'Added Capstone Defense as a recurring assessment tool.',
-                },
-            },
-            {
-                'version': 1,
-                'date': 'Mar 20, 2025',
-                'editor': 'Dr. Farhan Ahmed',
-                'sections_changed': ['Mission & Vision', 'PEOs', 'PLOs', 'PEO-PLO Mapping', 'Settings & Assessment Tools'],
-                'comments': {
-                    'Mission & Vision': 'Initial setup based on department curriculum committee draft.',
-                    'PEOs': 'Initial PEOs adapted from outgoing curriculum.',
-                    'PLOs': 'Imported ABET preset and adjusted wording for local context.',
-                    'PEO-PLO Mapping': 'Initial mapping drafted with curriculum committee.',
-                    'Settings & Assessment Tools': 'Initial assessment tools selected.',
-                },
-            },
-        ],
-    },
-    2: {  # BSEEE
-        'inst_vision': 'To be a globally recognized institution advancing knowledge and innovation for the betterment of society.',
-        'inst_missions': [
-            'To advance knowledge through excellence in teaching and research.',
-        ],
-        'program_vision': 'To be a recognized leader in electrical and electronic engineering education and innovation.',
-        'program_missions': [
-            'To deliver a strong foundation in electrical and electronic engineering principles.',
-            'To prepare graduates for industry, research, and entrepreneurship.',
-        ],
-        'peos': [
-            {'title': 'Technical Competence', 'description': 'Graduates will apply electrical and electronic engineering principles to solve real-world problems.'},
-            {'title': 'Professional Growth', 'description': 'Graduates will pursue continued professional development and leadership roles.'},
-            {'title': 'Societal Impact', 'description': 'Graduates will contribute engineering solutions that benefit society and the environment.'},
-        ],
-        'plos': [
-            {'title': 'Engineering knowledge', 'description': 'Apply knowledge of mathematics, science, and engineering fundamentals to electrical and electronic systems.'},
-            {'title': 'Design/development of solutions', 'description': 'Design electrical and electronic systems that meet specified needs.'},
-            {'title': 'Modern tool usage', 'description': 'Apply modern engineering and IT tools to electrical engineering activities.'},
-            {'title': 'Ethics', 'description': 'Apply ethical principles in engineering practice.'},
-            {'title': 'Communication', 'description': 'Communicate effectively with technical and non-technical audiences.'},
-        ],
-        'mapping': [
-            [True, True, True, False, False],
-            [False, True, True, True, False],
-            [True, False, False, True, True],
-        ],
-        'assessment_tools': ['Quiz', 'Midterm', 'Lab Report', 'Practical Exam'],
-        'assessment_tools_custom': [],
-        'version_history': [
-            {
-                'version': 1,
-                'date': 'Jan 18, 2026',
-                'editor': 'Dr. Nusrat Jahan',
-                'sections_changed': ['Mission & Vision', 'PEOs', 'PLOs', 'PEO-PLO Mapping', 'Settings & Assessment Tools'],
-                'comments': {
-                    'Mission & Vision': 'Initial program setup.',
-                    'PEOs': 'Initial PEOs drafted with department input.',
-                    'PLOs': 'Imported BAETE preset.',
-                    'PEO-PLO Mapping': 'Initial mapping drafted.',
-                    'Settings & Assessment Tools': 'Initial assessment tools selected.',
-                },
-            },
-        ],
-    },
-}
-
 
 def dashboard(request):
     """
@@ -168,15 +22,16 @@ def dashboard(request):
     Program / PEO / PLO / ActivityLog models exist, e.g.:
         Program.objects.filter(controller=request.user)
     """
-    new_programs = [p for p in DEMO_PROGRAMS if p['version'] == 0]
-    managed_programs = [p for p in DEMO_PROGRAMS if p['version'] > 0]
+    programs = list_programs()
+    new_programs = [p for p in programs if p.get('version', 0) == 0]
+    managed_programs = [p for p in programs if p.get('version', 0) > 0]
 
     context = {
         'today': date.today().strftime('%A, %B %d, %Y'),
         'stats': {
-            'assigned_programs': len(DEMO_PROGRAMS),
-            'peos_defined': sum(p['peo_count'] for p in managed_programs),
-            'plos_defined': sum(p['plo_count'] for p in managed_programs),
+            'assigned_programs': len(programs),
+            'peos_defined': sum(p.get('peo_count', 0) for p in managed_programs),
+            'plos_defined': sum(p.get('plo_count', 0) for p in managed_programs),
             'pending_actions': len(new_programs),
         },
         'new_programs': new_programs,
@@ -191,7 +46,8 @@ def program_list(request):
     Action column: Manage -> program_create (prefilled, locked code/name),
                     Edit   -> program_edit (versioning / full edit page).
     """
-    context = {'programs': DEMO_PROGRAMS}
+    programs = list_programs()
+    context = {'programs': programs}
     return render(request, 'program_list.html', context)
 
 
@@ -205,12 +61,13 @@ def program_create(request):
 
 
 def program_edit(request, program_id):
-    program = next((p for p in DEMO_PROGRAMS if p['id'] == program_id), None)
+    program = get_program(str(program_id))
     if program is None:
-        # Real implementation: raise Http404 via get_object_or_404 above.
-        return render(request, 'program_list.html', {'programs': DEMO_PROGRAMS, 'error': 'Program not found.'})
+        programs = list_programs()
+        return render(request, 'program_list.html', {'programs': programs, 'error': 'Program not found.'})
 
-    detail = DEMO_PROGRAM_DETAIL.get(program_id, {
+    # If detail exists in the program doc, use it; otherwise create empty structure
+    detail = program.get('detail', {
         'inst_vision': '',
         'inst_missions': [],
         'program_vision': '',
@@ -224,12 +81,12 @@ def program_edit(request, program_id):
     })
 
     context = {
-        'program_id': program['id'],
-        'code': program['code'],
-        'name': program['name'],
-        'current_version': program['version'],
-        'next_version': program['version'] + 1,
-        'status': program['status'],
+        'program_id': program.get('id'),
+        'code': program.get('code'),
+        'name': program.get('name'),
+        'current_version': program.get('version', 0),
+        'next_version': program.get('version', 0) + 1,
+        'status': program.get('status', ''),
         'detail': detail,
         'standard_assessment_tools': [
             'Quiz', 'Midterm', 'Final Project', 'Lab Report', 'Presentation',
