@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-5-^ixt=)3(w0hbm4bfbmw^+pd1)s(yp*k7%!jiqrsku#+0r_%a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0', 'testserver']
 
 
 # Application definition
@@ -50,9 +50,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'dashboard'  # Redirect to home after login
-LOGOUT_REDIRECT_URL = 'login'
+LOGIN_URL = 'custom_login'
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'custom_login'
 
 ROOT_URLCONF = 'obe_software.urls'
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from .firebase import get_firestore_client
+from .firebase import get_realtime_db
 
 PROGRAM_COLLECTION = 'programs'
 
@@ -10,25 +10,36 @@ def _normalize_program_id(program_id):
 
 
 def save_program(program_id, payload):
-    db = get_firestore_client()
-    doc_ref = db.collection(PROGRAM_COLLECTION).document(_normalize_program_id(program_id))
+    db_ref = get_realtime_db()
+    if not db_ref:
+        return None
+
+    db_ref = db_ref.child(PROGRAM_COLLECTION).child(_normalize_program_id(program_id))
     payload = payload.copy()
-    payload['updated_at'] = datetime.utcnow()
-    doc_ref.set(payload, merge=True)
-    return doc_ref.get().to_dict()
+    payload['updated_at'] = datetime.utcnow().isoformat()
+    db_ref.update(payload)
+    return db_ref.get()
 
 
 def get_program(program_id):
-    db = get_firestore_client()
-    doc_ref = db.collection(PROGRAM_COLLECTION).document(_normalize_program_id(program_id))
-    snapshot = doc_ref.get()
-    return snapshot.to_dict() if snapshot.exists else None
+    db_ref = get_realtime_db()
+    if not db_ref:
+        return None
+
+    db_ref = db_ref.child(PROGRAM_COLLECTION).child(_normalize_program_id(program_id))
+    return db_ref.get() or None
 
 
 def list_programs():
-    db = get_firestore_client()
-    docs = db.collection(PROGRAM_COLLECTION).stream()
-    return [doc.to_dict() for doc in docs]
+    db_ref = get_realtime_db()
+    if not db_ref:
+        return []
+
+    db_ref = db_ref.child(PROGRAM_COLLECTION)
+    programs = db_ref.get() or {}
+    if isinstance(programs, dict):
+        return [programs[key] for key in programs]
+    return list(programs)
 
 
 def seed_demo_programs():
@@ -76,7 +87,15 @@ def seed_demo_programs():
 
 
 def clear_programs():
-    db = get_firestore_client()
-    docs = db.collection(PROGRAM_COLLECTION).stream()
-    for doc in docs:
-        db.collection(PROGRAM_COLLECTION).document(doc.id).delete()
+    db_ref = get_realtime_db()
+    if not db_ref:
+        return []
+
+    db_ref = db_ref.child(PROGRAM_COLLECTION)
+    programs = db_ref.get() or {}
+    if isinstance(programs, dict):
+        for key in programs:
+            db_ref.child(key).delete()
+    else:
+        db_ref.delete()
+    return []

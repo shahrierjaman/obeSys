@@ -393,7 +393,10 @@
             <a href="#" class="hover:text-slate-600 transition">Help</a>
             <a href="#" class="hover:text-slate-600 transition">Privacy</a>
             <a href="#" class="hover:text-slate-600 transition">Support</a>
-            <a href="#" class="text-red-400 hover:text-red-600 transition font-medium">Logout</a>
+            <form method="post" action="{% url 'custom_logout' %}" class="inline-block">
+                {% csrf_token %}
+                <button type="submit" class="text-red-400 hover:text-red-600 transition font-medium">Logout</button>
+            </form>
         </div>
     </footer>
 

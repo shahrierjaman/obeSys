@@ -58,8 +58,14 @@
                     <h3 class="text-2xl font-bold text-slate-800">Welcome back</h3>
                     <p class="text-sm text-slate-500 mt-1 mb-6">Sign in to your dashboard</p>
 
+                    {% if error %}
+                    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {{ error }}
+                    </div>
+                    {% endif %}
+
                     <!-- Django Login Form -->
-                    <form method="post" action="{% url 'login' %}" class="space-y-5">
+                    <form method="post" action="{% url 'custom_login' %}" class="space-y-5">
                         {% csrf_token %}
                         
                         <!-- Username -->
@@ -107,6 +113,15 @@
                         <!-- Hidden: next redirect -->
                         <input type="hidden" name="next" value="{{ next }}" />
                     </form>
+
+                    <div class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                        <p class="font-semibold text-slate-700">Demo accounts</p>
+                        <ul class="mt-2 list-disc pl-4 space-y-1">
+                            <li>Dean: dean@university.edu / Dean123!</li>
+                            <li>Program Controller: controller@university.edu / Controller123!</li>
+                            <li>Instructor: instructor@university.edu / Instructor123!</li>
+                        </ul>
+                    </div>
 
                     <!-- Demo / Footer -->
                     <p class="text-xs text-slate-400 text-center mt-8 border-t border-slate-100 pt-6">

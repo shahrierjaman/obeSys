@@ -2,6 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('login/', views.custom_login, name='custom_login'),
+    path('logout/', views.custom_logout, name='custom_logout'),
     # The main dashboard (will just extend base.html for now)
     path('', views.dashboard, name='dashboard'),
     path('programs/', views.program_list, name='program_list'),

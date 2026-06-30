@@ -62,14 +62,22 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Program Code <span class="text-red-500">*</span></label>
-                <input type="text" name="code" value="{{ form_data.code|default:'' }}" placeholder="e.g., BSCS"
-                       class="w-full border {% if errors.code %}input-error{% else %}border-slate-300{% endif %} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <select name="code" class="w-full border {% if errors.code %}input-error{% else %}border-slate-300{% endif %} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Select program code</option>
+                    {% for option in program_code_options %}
+                        <option value="{{ option.value }}" {% if form_data.code == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
                 {% if errors.code %}<p class="input-error-text">{{ errors.code }}</p>{% endif %}
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Program Name <span class="text-red-500">*</span></label>
-                <input type="text" name="name" value="{{ form_data.name|default:'' }}" placeholder="e.g., Bachelor of Science in Computer Science"
-                       class="w-full border {% if errors.name %}input-error{% else %}border-slate-300{% endif %} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <select name="name" class="w-full border {% if errors.name %}input-error{% else %}border-slate-300{% endif %} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Select program name</option>
+                    {% for option in program_name_options %}
+                        <option value="{{ option.value }}" {% if form_data.name == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
                 {% if errors.name %}<p class="input-error-text">{{ errors.name }}</p>{% endif %}
             </div>
         </div>

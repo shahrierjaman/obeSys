@@ -119,9 +119,12 @@
 
             <!-- Footer / Logout -->
             <div class="border-t border-gray-100 p-4">
-                <a href="{% url 'logout' %}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg transition">
-                    <i class="fas fa-sign-out-alt w-5 text-center"></i> Logout
-                </a>
+                <form method="post" action="{% url 'custom_logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg transition">
+                        <i class="fas fa-sign-out-alt w-5 text-center"></i> Logout
+                    </button>
+                </form>
             </div>
         </aside>
 

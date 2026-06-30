@@ -1,9 +1,36 @@
 from datetime import date
 
+from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import Group
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 
+
+def _ensure_demo_users():
+    user_model = get_user_model()
+    roles = [
+        ('dean', 'dean@university.edu', 'Dean123!'),
+        ('program_controller', 'controller@university.edu', 'Controller123!'),
+        ('instructor', 'instructor@university.edu', 'Instructor123!'),
+    ]
+    for role, username, password in roles:
+        group, _ = Group.objects.get_or_create(name=role)
+        user = user_model.objects.filter(username=username).first()
+        if user is None:
+            user = user_model.objects.create_user(username=username, email=username, password=password)
+        if not user.groups.filter(name=role).exists():
+            user.groups.add(group)
+
+
 from .firestore_service import list_programs, get_program
+
+
+def _get_programs_or_empty():
+    try:
+        return list_programs()
+    except Exception:
+        return []
 
 RECENT_ACTIVITY = [
     {'icon': 'fa-link', 'color': 'indigo', 'text': 'Updated PEO-PLO mapping for BSCS.', 'time': '2 hours ago'},
@@ -15,6 +42,58 @@ RECENT_ACTIVITY = [
 
 
 
+def custom_login(request):
+    _ensure_demo_users()
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+
+        user = None
+        if username:
+            user = authenticate(request, username=username, password=password)
+            if user is None and '@' in username:
+                user_model = get_user_model()
+                candidate = user_model.objects.filter(email=username).first()
+                if candidate is not None and candidate.check_password(password):
+                    user = candidate
+            if user is None:
+                user_model = get_user_model()
+                candidate = user_model.objects.filter(username=username.split('@')[0]).first()
+                if candidate is not None and candidate.check_password(password):
+                    user = candidate
+
+        if user is not None:
+            login(request, user)
+            if user.groups.filter(name='dean').exists():
+                return redirect('dean_dashboard')
+            if user.groups.filter(name='instructor').exists():
+                return redirect('instructor_dashboard')
+            return redirect('dashboard')
+
+        return render(request, 'registration/login.html', {'error': 'Invalid username or password.'})
+
+    if request.user.is_authenticated:
+        if request.user.groups.filter(name='dean').exists():
+            return redirect('dean_dashboard')
+        if request.user.groups.filter(name='instructor').exists():
+            return redirect('instructor_dashboard')
+        return redirect('dashboard')
+
+    return render(request, 'registration/login.html')
+
+
+def custom_logout(request):
+    if request.method == 'POST':
+        logout(request)
+        return redirect('custom_login')
+
+    if request.user.is_authenticated:
+        logout(request)
+    return redirect('custom_login')
+
+
+@login_required
 def dashboard(request):
     """
     Program Controller dashboard.
@@ -22,7 +101,7 @@ def dashboard(request):
     Program / PEO / PLO / ActivityLog models exist, e.g.:
         Program.objects.filter(controller=request.user)
     """
-    programs = list_programs()
+    programs = _get_programs_or_empty()
     new_programs = [p for p in programs if p.get('version', 0) == 0]
     managed_programs = [p for p in programs if p.get('version', 0) > 0]
 
@@ -40,17 +119,19 @@ def dashboard(request):
     return render(request, 'base.html', context)
 
 
+@login_required
 def program_list(request):
     """
     Shows every program assigned to the logged-in Program Controller.
     Action column: Manage -> program_create (prefilled, locked code/name),
                     Edit   -> program_edit (versioning / full edit page).
     """
-    programs = list_programs()
+    programs = _get_programs_or_empty()
     context = {'programs': programs}
     return render(request, 'program_list.html', context)
 
 
+@login_required
 def program_create(request):
     context = {
         'program_id': request.GET.get('id', ''),
@@ -60,10 +141,15 @@ def program_create(request):
     return render(request, 'program_form.html', context)
 
 
+@login_required
 def program_edit(request, program_id):
-    program = get_program(str(program_id))
+    try:
+        program = get_program(str(program_id))
+    except Exception:
+        program = None
+
     if program is None:
-        programs = list_programs()
+        programs = _get_programs_or_empty()
         return render(request, 'program_list.html', {'programs': programs, 'error': 'Program not found.'})
 
     # If detail exists in the program doc, use it; otherwise create empty structure
@@ -96,6 +182,7 @@ def program_edit(request, program_id):
     return render(request, 'program_edit.html', context)
 
 
+@login_required
 def program_update(request, program_id):
     return JsonResponse({'status': 'ok', 'message': 'Update received (demo stub — not yet persisted).'})
 
@@ -163,6 +250,7 @@ def plo_preset_import(request, source):
     return JsonResponse({'source': source, 'plos': data})
 
 
+@login_required
 def course_list(request):
     # Dummy data for UI demonstration
     courses = [
@@ -783,6 +871,7 @@ def offering_detail(request, pk):
 
 # ==================== INSTRUCTOR DASHBOARD VIEW ====================
 
+@login_required
 def instructor_dashboard(request):
     # Dummy instructor data (replace with actual user data later)
     instructor = {
@@ -964,6 +1053,20 @@ def survey_results(request, pk):
     }
     return render(request, 'survey_results.html', {'survey': survey})
 
+
+PROGRAM_CODE_OPTIONS = [
+    {'value': 'BSEE', 'label': 'BSEE'},
+    {'value': 'BSME', 'label': 'BSME'},
+    {'value': 'BBA', 'label': 'BBA'},
+    {'value': 'BSCS', 'label': 'BSCS'},
+]
+
+PROGRAM_NAME_OPTIONS = [
+    {'value': 'Bachelor of Science in Electrical Engineering', 'label': 'Bachelor of Science in Electrical Engineering'},
+    {'value': 'Bachelor of Science in Mechanical Engineering', 'label': 'Bachelor of Science in Mechanical Engineering'},
+    {'value': 'Bachelor of Business Administration', 'label': 'Bachelor of Business Administration'},
+    {'value': 'Bachelor of Science in Computer Science', 'label': 'Bachelor of Science in Computer Science'},
+]
 
 DEMO_CONTROLLERS = [
     {'id': 1, 'name': 'Dr. Farhan Ahmed', 'email': 'farhan.ahmed@university.edu', 'department': 'Computer Science', 'active_programs': 1},
@@ -1187,6 +1290,7 @@ def _section_complete(program_id):
     return bool(program and program['version'] > 0)
 
 
+@login_required
 def dean_dashboard(request):
     
     total_programs = len(DEMO_PROGRAMS)
@@ -1261,10 +1365,18 @@ def dean_program_create(request):
             'controllers': DEMO_CONTROLLERS,
             'errors': errors,
             'form_data': {'code': code, 'name': name, 'controller_id': controller_id},
+            'program_code_options': PROGRAM_CODE_OPTIONS,
+            'program_name_options': PROGRAM_NAME_OPTIONS,
         }
         return render(request, 'dean_program_create.html', context)
 
-    context = {'controllers': DEMO_CONTROLLERS, 'errors': {}, 'form_data': {}}
+    context = {
+        'controllers': DEMO_CONTROLLERS,
+        'errors': {},
+        'form_data': {},
+        'program_code_options': PROGRAM_CODE_OPTIONS,
+        'program_name_options': PROGRAM_NAME_OPTIONS,
+    }
     return render(request, 'dean_program_create.html', context)
 
 
